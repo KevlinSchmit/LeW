@@ -25,7 +25,7 @@ renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 renderer.transmissionResolutionScale = 1;
 renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.toneMappingExposure = .94;
+renderer.toneMappingExposure = 1.08;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#231c17');
@@ -51,7 +51,9 @@ controls.rotateSpeed = .35;
 controls.zoomSpeed = .45;
 scene.environment = makeReflectionStudio(renderer);
 scene.environmentIntensity = .16;
-scene.add(new THREE.HemisphereLight(0xc6b6a1, 0x26211c, .42));
+// Warm ambient bounce reaches the whole room, including the shadowed props.
+scene.add(new THREE.HemisphereLight(0xffe3a1, 0x664a20, 1.0));
+scene.add(new THREE.AmbientLight(0xffd369,.28));
 function directionalLight(color, power, position, aim, shadow = false) {
   const l = new THREE.DirectionalLight(color, power);
   l.position.set(...position);
@@ -67,13 +69,13 @@ function directionalLight(color, power, position, aim, shadow = false) {
   scene.add(l, l.target);
   return l;
 }
-// Warm light enters from screen-left; the room stays dim around the counter.
-const counterKey=directionalLight(0xffb974, 3.2, [-9, 7, 6], [0, 1, 0], true);
+// Golden-yellow light enters from the left and is carried through the room by warm fill.
+const counterKey=directionalLight(0xffd477, 3.8, [-9, 7, 6], [0, 1, 0], true);
 counterKey.name='Warm left counter key';
-const roomFill=directionalLight(0xb9c1cc, .16, [8, 6, -4], [0, 1, 0]);
-roomFill.name='Dim tavern fill';
-// A higher golden-orange ceiling source warms the central counter.
-const centerTopLight=new THREE.SpotLight(0xff9c32,420,32,.47,.70,2);
+const roomFill=directionalLight(0xffd467, .5, [8, 6, -4], [0, 1, 0]);
+roomFill.name='Warm tavern fill';
+// The higher warm-yellow ceiling pool adds emphasis without cooling the room.
+const centerTopLight=new THREE.SpotLight(0xffce52,500,32,.47,.70,2);
 centerTopLight.name='Central warm yellow top light';
 centerTopLight.position.set(0,12.75,-.65);
 centerTopLight.target.position.set(0,.2,-.15);
