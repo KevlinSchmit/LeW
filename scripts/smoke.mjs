@@ -72,7 +72,7 @@ try {
   for(const detail of ['cap','torso','apron','knot','head','sleeve-l','sleeve-r'])
     assert.ok(chefInfo.names.includes(detail+' surface'),detail+' matches the reference');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
-  assert.ok(chefInfo.position[2]>0,'Chef stands in the foreground');
+  assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor');
   assert.ok(chefInfo.landmarks.hat.y<0,'The hat is above the frame');
   assert.ok(chefInfo.landmarks.chin.y>=0 && chefInfo.landmarks.chin.y<.07,'The top edge crops near the chin');
   assert.ok(chefInfo.landmarks.chest.visible,'The upper torso is visible');

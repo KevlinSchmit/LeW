@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic, outlineChef } from './materials.js';
-import { createSushiChef, frameSushiChef } from './characters/sushi-chef.js';
+import { createSushiChef } from './characters/sushi-chef.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -34,7 +34,8 @@ scene.fog = new THREE.FogExp2('#30231a', .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 90);
 // Blender is Z-up; glTF gives us Y-up. Visitor sits on the positive Z side.
 const home = new THREE.Vector3(0, 8.0, 17.2);
-const target = new THREE.Vector3(0, 2.25, -1.0);
+const wideTarget = new THREE.Vector3(0, 2.25, -1);
+const target = wideTarget.clone();
 camera.position.copy(home);
 camera.lookAt(target);
 const controls = new OrbitControls(camera, canvas);
@@ -187,7 +188,7 @@ Promise.all([loadScene, createSushiChef()]).then(([gltf, chef]) => {
     if (child.name.startsWith('CHEF')) model.remove(child);
   }
   chefForFraming = chef;
-  frameSushiChef(chef, camera);
+  frameSeatedView();
   model.add(chef);
   let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
@@ -262,12 +263,30 @@ function updateMotionButton() {
 }
 updateMotionButton();
 document.querySelector('#motion').addEventListener('click', () => { motion = !motion; updateMotionButton(); });
+
+// Keep the chef behind the belt. Set the upper framing guide at the chin and
+// the lower guide just below the conveyor surface.
+function frameSeatedView() {
+  if (!chefForFraming || lookMode) return;
+  const chef = chefForFraming;
+  const chin = new THREE.Vector3(...chef.userData.landmarks.chin)
+    .multiplyScalar(chef.scale.x).add(chef.position);
+  const upper = Math.atan2(chin.y - home.y, camera.position.z - chin.z);
+  const lower = Math.atan2(1.55 - home.y, camera.position.z + 2.05);
+  const pitch = (upper + lower) / 2;
+  target.set(0, home.y + Math.tan(pitch) * (camera.position.z - chef.position.z), chef.position.z);
+  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan((upper - lower) / 2) / .94));
+  camera.updateProjectionMatrix();
+  controls.target.copy(target);
+  camera.lookAt(target);
+}
+
 function resetView() {
   lookMode = false; controls.enabled = false;
   camera.position.copy(home);
   if (camera.aspect < 1) camera.position.z = 26;
   controls.target.copy(target); camera.lookAt(target);
-  if (chefForFraming) frameSushiChef(chefForFraming, camera);
+  frameSeatedView();
   document.querySelector('#look').setAttribute('aria-pressed','false');
   document.querySelector('#look span').textContent = 'Look around';
   canvas.style.cursor = 'default';
@@ -279,7 +298,12 @@ document.querySelector('#look').addEventListener('click', () => {
   document.querySelector('#look').setAttribute('aria-pressed',String(lookMode));
   document.querySelector('#look span').textContent = lookMode ? 'Reset view' : 'Look around';
   canvas.style.cursor = lookMode ? 'grab' : 'default';
-  if (!lookMode) resetView();
+  if (lookMode) {
+    camera.fov = camera.aspect < 1 ? 69 : 38;
+    camera.updateProjectionMatrix();
+    controls.target.copy(wideTarget);
+    camera.lookAt(wideTarget);
+  } else resetView();
   showHint(lookMode ? 'Drag to look around · scroll to move closer' : 'Back to your seat');
 });
 let hintTimeout;
@@ -341,7 +365,7 @@ window.addEventListener('keydown',(event) => {
 });
 function resize() {
   camera.aspect = innerWidth/innerHeight;
-  // Portrait retains the entire counter, rather than silently cropping its objects.
+  // Start from the wide camera settings before applying the seated close-up.
   camera.fov = innerWidth/innerHeight < 1 ? 69 : 38;
   camera.position.copy(home);
   if (innerWidth/innerHeight < 1) camera.position.z = 26;
@@ -352,7 +376,7 @@ function resize() {
   sceneTarget.setSize(renderSize.x,renderSize.y);
   finishMaterial.uniforms.pixel.value.set(1/renderSize.x,1/renderSize.y);
   camera.lookAt(target);
-  if (chefForFraming) frameSushiChef(chefForFraming, camera);
+  frameSeatedView();
 }
 window.addEventListener('resize',resize);
 resize();
