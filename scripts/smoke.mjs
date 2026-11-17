@@ -42,7 +42,7 @@ try {
     return {spot:light.isSpotLight,angle:light.angle,color:light.color.toArray(),shadows:light.castShadow,
       shadowMapReady:!!light.shadow.map,menu:lit(-.5,.4,3.1),sushi:lit(0,2.8,-2.05),side:lit(8,.5,2)};
   });
-  assert.ok(topLight?.spot && topLight.angle<.45,'A single narrow overhead spotlight is present');
+  assert.ok(topLight?.spot && topLight.angle<.6,'A single focused overhead light is present');
   assert.ok(topLight.color[0]>topLight.color[1] && topLight.color[1]>topLight.color[2],'Overhead light is warm yellow');
   assert.ok(topLight.menu && topLight.sushi && !topLight.side,'The overhead pool covers the menu and central sushi, not the side props');
   assert.ok(topLight.shadows && topLight.shadowMapReady,'The spotlight has a rendered shadow map');
@@ -130,7 +130,8 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),true,'Space on the canvas resumes motion');
   await page.keyboard.press('Space');
   await page.setViewportSize({width:390,height:844});
-  await page.waitForTimeout(700);
+  // Software WebGL can delay the resize event; wait for the canvas layout.
+  await page.waitForFunction(()=>document.querySelector('#scene').clientWidth===innerWidth);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),390,'No mobile horizontal overflow');
   assert.equal(await page.locator('#motion').isVisible(),true);
   await page.screenshot({path:'artifacts/scene-mobile.png',timeout:120000});

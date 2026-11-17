@@ -72,10 +72,10 @@ const counterKey=directionalLight(0xffb974, 3.2, [-9, 7, 6], [0, 1, 0], true);
 counterKey.name='Warm left counter key';
 const roomFill=directionalLight(0xb9c1cc, .16, [8, 6, -4], [0, 1, 0]);
 roomFill.name='Dim tavern fill';
-// One narrow overhead pool, shared by the menu and the middle conveyor plates.
-const centerTopLight=new THREE.SpotLight(0xffda83,520,32,.38,.28,2);
+// A higher amber ceiling source spreads a restrained pool across the central counter.
+const centerTopLight=new THREE.SpotLight(0xffb568,300,32,.47,.70,2);
 centerTopLight.name='Central warm yellow top light';
-centerTopLight.position.set(0,11.5,-.65);
+centerTopLight.position.set(0,12.75,-.65);
 centerTopLight.target.position.set(0,.2,-.15);
 centerTopLight.castShadow=true;
 centerTopLight.shadow.mapSize.set(2048,2048);
