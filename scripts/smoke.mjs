@@ -69,8 +69,9 @@ try {
   assert.equal(chefInfo.procedural,true,'Character is built with Three.js');
   assert.equal(chefInfo.chefCount,1,'The original indigo chef is replaced, not overlaid');
   assert.ok(!chefInfo.materials.some(n=>/indigo|tenugui|headband/i.test(n)),'No original blue costume remains');
-  for(const detail of ['cap','torso','apron','knot','head','sleeve-l','sleeve-r'])
+  for(const detail of ['cap','torso','sash','head','sleeve-l','sleeve-r'])
     assert.ok(chefInfo.names.includes(detail+' surface'),detail+' matches the reference');
+  assert.ok(!chefInfo.names.some(name=>/^(apron|trousers|leg-|shoe-)/.test(name)),'The counter displays only the upper-body assembly');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
   assert.ok(chefInfo.position[2]<-3,'Chef stands behind the conveyor');
   assert.ok(chefInfo.landmarks.hat.y<0 && chefInfo.landmarks.chin.y>=0 && chefInfo.landmarks.chin.y<.04,'The seated desktop camera crops at the chin');

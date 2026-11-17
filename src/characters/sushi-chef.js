@@ -9,8 +9,10 @@ const landmark = (x, y, z) => [x / pixelsPerMeter, (floorY - y) / pixelsPerMeter
 export async function createSushiChef() {
   const chef = createChefModel({ textures: await loadChefTextures(frontURL, atlasURL) });
   chef.name = 'CHEF · reference reconstruction';
-  chef.position.set(0, 1.412, -4.1);
-  chef.scale.setScalar(11.27 * .73 / ((floorY - 24) / pixelsPerMeter));
+  // Match the fixed seated view: chin above the chest and sash at belt height.
+  const sceneUnitsPerPixel = .0235;
+  chef.scale.setScalar(sceneUnitsPerPixel * pixelsPerMeter);
+  chef.position.set(0, 8.34 - (floorY - 185) * sceneUnitsPerPixel, -4.96);
   Object.assign(chef.userData, {
     procedural: true,
     static_character: true,
@@ -26,6 +28,13 @@ export async function createSushiChef() {
   for (const mesh of chef.userData.sculptRuntime.meshes) {
     const material = mesh.material;
     const kind = mesh.userData.materialId;
+    const id = mesh.userData.componentId;
+    // The full model remains available in the factory. The counter scene uses
+    // the upper-body meshes above the belt and omits the lower-body assembly.
+    if (/^(apron|trousers|leg-|shoe-|knot|tail-)/.test(id)) {
+      mesh.removeFromParent();
+      continue;
+    }
     mesh.userData.noOutline = material.side !== FrontSide;
     material.name = `CHEF · ${mesh.userData.componentId} ${kind}`;
     if (kind === 'cloth' || kind === 'skin') {
