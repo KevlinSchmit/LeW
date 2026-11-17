@@ -1,6 +1,6 @@
 # The Sushi Counter
 
-A full-screen, three-dimensional portfolio scene for Kevlin Schmit, reconstructed from the supplied sushi restaurant reference. Original Blender geometry, painted textures, a Three.js renderer and a static sushi chef; no stock background images or third-party 3D assets.
+A full-screen, three-dimensional portfolio scene for Kevlin Schmit, reconstructed from the supplied sushi restaurant reference. Original Blender restaurant geometry, painted textures, a Three.js renderer and a procedural sushi chef; no stock background images or third-party 3D assets.
 
 Download **[preview.html](preview.html)** for a ready-built, self-contained HTML view.
 
@@ -28,7 +28,8 @@ npm run build
 - `blender/optimize_export.py` — merges the web copy by material **within** each independent assembly; the Blender source stays separated.
 - `scripts/textures.py` / `blender/textures/` — deterministic original wood, blossom, seigaiha, fish, signage and paper artwork.
 - `public/models/objects/` — 13 individual GLB assets, exported at local origin.
-- `public/models/sushi-bar.glb` — portable web scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL`, `POS` and `CHEF` are separate scene roots.
+- `public/models/sushi-bar.glb` — portable Blender scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL` and `POS` are separate scene roots. The embedded legacy blue `CHEF` is removed at load time and replaced by `src/characters/sushi-chef.js`.
+- `src/characters/sushi-chef.js` — complete procedural Three.js character, including editable body geometry, costume, facial features and seeded canvas textures. No Blender regeneration or external image requests are needed to edit this character.
 
 To regenerate with Blender 4.3+ and Python 3 / Pillow:
 
@@ -51,7 +52,9 @@ The original seated camera is restored (38° vertical field of view, position 0 
 
 On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 9 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 111,000 vertices, down from approximately 418,000.
 
-The static sushi chef stands behind the conveyor and both rear plate columns. The seated view deliberately crops his head at the chin, emphasizing the upper body. He wears an indigo cross-collar cotton jacket, dark work trousers and a dotted white tenugui with tied tails. Original 128–512px painted maps provide cloth weave, folds, stitched hems, skin, facial features and hair. Low-poly geometry, authored black seams and a web inverted-hull outline retain the game-asset style. There is no rig, keyframed animation or character update loop. `blender/build_chef.py` and `scripts/chef_textures.py` reproduce the character; `public/models/objects/sushi-chef.glb` contains the complete standing figure for editing or reuse.
+The static sushi chef now follows the white-uniform character reference: a low cylindrical cloth hat, short-sleeved cross-collar jacket, vertical 寿司 chest embroidery, wrapped waist sash with hanging ties, long apron, white trousers and black work shoes. His adult face includes a modeled nose, ears, narrow eyes, heavy brows and dark sideburns. `createSushiChef()` constructs the complete standing figure with Three.js geometry and deterministic 256px canvas maps; the embroidered characters use vector strokes, so the standalone HTML requires no fonts or downloaded textures.
+
+He stands at `(0, -1.25, -10.6)`, scaled to `0.73`, behind the conveyor and both rear plate columns. The existing restaurant camera and lighting stay in place: the whole hat and head fit in the frame, the chest is unobstructed, and the counter occludes the legs. Both desktop and portrait framing are covered by the offline smoke test, including actual raycast visibility. There is no rig, keyframed animation or character update loop. Edit `src/characters/sushi-chef.js` to change proportions, costume or placement, then run `npm run build` to refresh the downloadable preview. `blender/build_chef.py`, `scripts/chef_textures.py` and `public/models/objects/sushi-chef.glb` retain the legacy blue Blender character as source history; they are not the displayed chef.
 
 ## Validation
 

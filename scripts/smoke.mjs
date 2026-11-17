@@ -48,22 +48,35 @@ try {
   assert.ok(topLight.shadows && topLight.shadowMapReady,'The spotlight has a rendered shadow map');
   const chefInfo=await page.evaluate(()=>{
     const app=window.__sushi,chef=app.model.children.find(o=>o.name.startsWith('CHEF'));
-    let triangles=0,skinned=false;const paints=new Set();
+    let triangles=0,skinned=false;const paints=new Set(),names=[],materials=new Set();
     chef.traverse(o=>{if(!o.isMesh || o.userData.chefOutline)return;
       triangles+=(o.geometry.index?.count ?? o.geometry.attributes.position.count)/3;
       skinned ||= !!o.isSkinnedMesh;
       if(o.material.map)paints.add(o.material.name);
+      names.push(o.name);materials.add(o.material.name);
     });
     const V=app.camera.position.constructor;
-    const chin=new V(0,9.4,0).applyMatrix4(chef.matrixWorld).project(app.camera);
-    const head=new V(0,11.6,0).applyMatrix4(chef.matrixWorld).project(app.camera);
-    return {triangles,skinned,paints:paints.size,position:chef.position.toArray(),chinY:(1-chin.y)/2,headY:(1-head.y)/2};
+    const landmarks=Object.fromEntries(Object.entries(chef.userData.landmarks).map(([key,position])=>{
+      const p=new V(...position).applyMatrix4(chef.matrixWorld).project(app.camera);
+      const x=(p.x+1)/2*innerWidth,y=(1-p.y)/2*innerHeight;
+      return [key,{y:y/innerHeight,visible:app.pickAt(x,y)===chef}];
+    }));
+    return {triangles,skinned,paints:paints.size,position:chef.position.toArray(),landmarks,names,materials:[...materials],
+      procedural:chef.userData.procedural,chefCount:app.model.children.filter(o=>o.name.startsWith('CHEF')).length};
   });
-  assert.ok(chefInfo.triangles<6000,'Chef uses low-poly geometry');
-  assert.ok(chefInfo.paints>=5,'Separate skin, face, cotton, hair and headband textures loaded');
+  assert.ok(chefInfo.triangles<6000,'Complete procedural chef stays below 6k triangles');
+  assert.ok(chefInfo.paints>=5,'Separate skin, cotton, apron, cap and hair maps loaded');
+  assert.equal(chefInfo.procedural,true,'Character is built with Three.js');
+  assert.equal(chefInfo.chefCount,1,'The original indigo chef is replaced, not overlaid');
+  assert.ok(!chefInfo.materials.some(n=>/indigo|tenugui|headband/i.test(n)),'No original blue costume remains');
+  for(const detail of ['low cylindrical cloth hat','wrap jacket','long apron','front sash knot','寿司 chest embroidery','modeled nose'])
+    assert.ok(chefInfo.names.includes('Chef '+detail),detail+' matches the reference');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
   assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor and rear plate stacks');
-  assert.ok(chefInfo.chinY>=0 && chefInfo.chinY<.1 && chefInfo.headY<0,'Seated framing crops the chef at the chin');
+  assert.ok(chefInfo.landmarks.hat.y>.04 && chefInfo.landmarks.hat.y<.25,'Entire hat fits beneath the upper frame edge');
+  assert.ok(chefInfo.landmarks.chin.visible && chefInfo.landmarks.chest.visible,'Head and upper body are unobstructed');
+  assert.equal(chefInfo.landmarks.feet.visible,false,'Counter occludes the lower body');
+  console.log('Procedural chef:',JSON.stringify({triangles:chefInfo.triangles,landmarks:chefInfo.landmarks}));
   const artDirection=await page.evaluate(()=>{
     const model=window.__sushi.model;
     const root=prefix=>model.children.find(o=>o.name.startsWith(prefix));
@@ -153,6 +166,15 @@ try {
   await page.waitForFunction(()=>document.querySelector('#scene').clientWidth===innerWidth);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),390,'No mobile horizontal overflow');
   assert.equal(await page.locator('#motion').isVisible(),true);
+  const portraitChef=await page.evaluate(()=>{
+    const app=window.__sushi,chef=app.model.children.find(o=>o.name.startsWith('CHEF')),V=app.camera.position.constructor;
+    const project=point=>new V(...point).applyMatrix4(chef.matrixWorld).project(app.camera);
+    const hat=project(chef.userData.landmarks.hat),chest=project(chef.userData.landmarks.chest),feet=project(chef.userData.landmarks.feet);
+    return {hatInFrame:Math.abs(hat.x)<1 && Math.abs(hat.y)<1,
+      chestVisible:app.pickAt((chest.x+1)/2*innerWidth,(1-chest.y)/2*innerHeight)===chef,
+      feetVisible:app.pickAt((feet.x+1)/2*innerWidth,(1-feet.y)/2*innerHeight)===chef};
+  });
+  assert.ok(portraitChef.hatInFrame && portraitChef.chestVisible && !portraitChef.feetVisible,'Portrait also shows only the chef upper body with the whole hat');
   await page.screenshot({path:'artifacts/scene-mobile.png',timeout:120000});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.reload();
@@ -160,6 +182,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette, central warm spotlight, removed background fixtures, per-frame synchronized shadows, static textured low-poly chef, chin-cropped framing.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette, central warm spotlight, removed background fixtures, per-frame synchronized shadows, procedural white-uniform chef, reference costume details, unobstructed head and upper-body framing.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}

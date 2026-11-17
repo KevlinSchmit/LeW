@@ -133,7 +133,7 @@ export function outlineChef(root) {
       'vec3 transformed=vec3(position+normal*.028);');
   };
   outline.customProgramCacheKey=()=> 'chef-outline-v1';
-  const meshes=[];root.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  const meshes=[];root.traverse(o=>{if(o.isMesh && !o.userData.noOutline)meshes.push(o);});
   for(const mesh of meshes){
     const hull=new THREE.Mesh(mesh.geometry,outline);hull.name='Chef silhouette ink';
     hull.userData.chefOutline=true;hull.raycast=()=>{};hull.castShadow=false;hull.receiveShadow=false;

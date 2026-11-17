@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic, outlineChef } from './materials.js';
+import { createSushiChef } from './characters/sushi-chef.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -177,6 +178,12 @@ const loader = new GLTFLoader();
 loader.load(modelURL, (gltf) => {
   const model = gltf.scene;
   model.name = 'Sushi Counter — original Blender model';
+  // Replace the embedded indigo character with an editable procedural chef.
+  for (const child of [...model.children]) {
+    if (child.name.startsWith('CHEF')) model.remove(child);
+  }
+  const chef = createSushiChef();
+  model.add(chef);
   let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
     if (object.name.startsWith('SUSHI_') && object.isObject3D && !object.isMesh) plates.push(object);
@@ -214,8 +221,7 @@ loader.load(modelURL, (gltf) => {
       }
     }
   });
-  const chef=model.children.find(o=>o.name.startsWith('CHEF'));
-  if(chef)outlineChef(chef);
+  outlineChef(chef);
   plates.forEach((plate,index)=>{plate.position.x=-6.65+index*5.;plate.scale.setScalar(1.13);});
   // Two additional assemblies complete the loop outside the seated view.
   for (const [source,x] of [[plates[1],-11.65],[plates[0],13.35]]) {
