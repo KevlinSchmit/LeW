@@ -24,9 +24,7 @@ export function refineSurface(material) {
   material.envMapIntensity=.035;
   if('clearcoat' in material)material.clearcoat=0;
   if('specularIntensity' in material)material.specularIntensity=.10;
-  if(name.includes('washi')){
-    material.color.set('#dfd09a');material.emissive.set('#e6cb8c');material.emissiveIntensity=1.1;
-  }else if(name.includes('night beyond')){
+  if(name.includes('night beyond')){
     material.color.set('#1d2428');material.emissiveIntensity=.035;
   }else if(name.includes('salmon') || name.includes('tuna') || name.includes('tamagoyaki')){
     material.roughness=.96;material.envMapIntensity=.025;

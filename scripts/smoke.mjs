@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { checkShadowMotion } from './shadow-check.mjs';
 
 // Test the actual self-contained deliverable, offline, with a real WebGL browser.
 const browser = await chromium.launch({
@@ -32,6 +33,19 @@ try {
   assert.ok(assets.meshes>100 && assets.vertices>10000,'Actual 3D geometry loaded');
   for(const name of ['TEAPOT','TEACUP','MENU','BELL','POS'])
     assert.ok(assets.names.some(n=>n.startsWith(name)),name+' is a separate named assembly');
+  assert.ok(!assets.names.some(name=>/lantern|washi|hanging_stem/i.test(name)),'All background light fixtures are removed');
+  const topLight=await page.evaluate(()=>{
+    const app=window.__sushi,light=app.scene.getObjectByName('Central warm yellow top light');
+    if(!light)return null;
+    const V=app.camera.position.constructor,axis=light.target.position.clone().sub(light.position);
+    const lit=(x,y,z)=>new V(x,y,z).sub(light.position).angleTo(axis)<light.angle;
+    return {spot:light.isSpotLight,angle:light.angle,color:light.color.toArray(),shadows:light.castShadow,
+      shadowMapReady:!!light.shadow.map,menu:lit(-.5,.4,3.1),sushi:lit(0,2.8,-2.05),side:lit(8,.5,2)};
+  });
+  assert.ok(topLight?.spot && topLight.angle<.45,'A single narrow overhead spotlight is present');
+  assert.ok(topLight.color[0]>topLight.color[1] && topLight.color[1]>topLight.color[2],'Overhead light is warm yellow');
+  assert.ok(topLight.menu && topLight.sushi && !topLight.side,'The overhead pool covers the menu and central sushi, not the side props');
+  assert.ok(topLight.shadows && topLight.shadowMapReady,'The spotlight has a rendered shadow map');
   const artDirection=await page.evaluate(()=>{
     const model=window.__sushi.model;
     const root=prefix=>model.children.find(o=>o.name.startsWith(prefix));
@@ -100,6 +114,7 @@ try {
   assert.equal(assets.moving,true);
   const x=await page.evaluate(()=>window.__sushi.plates[0].position.x);
   await page.waitForFunction(before=>window.__sushi.plates[0].position.x<before-.005,x);
+  console.log('Shadow synchronization:',await checkShadowMotion(page));
   await page.getByRole('button',{name:'Conveyor on'}).click();
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false);
   const paused=await page.evaluate(()=>window.__sushi.plates[0].position.x);
@@ -125,6 +140,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette, central warm spotlight, removed background fixtures, per-frame synchronized shadows.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}

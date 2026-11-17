@@ -60,7 +60,6 @@ pink=mat('Pickled ginger',(.74,.43,.31),rough=.8)
 menuMat=mat('Woven indigo menu',(.10,.12,.20),rough=.72,texture='menu',surface='cloth')
 paper=mat('Warm cotton paper',(.91,.79,.61),rough=.8)
 curtain=mat('Indigo noren fabric',(.07,.1,.19),rough=.9,texture='curtain')
-lightmat=mat('Washi lantern glow',(1,.55,.19),rough=.7,emission=2.2)
 blueglass=mat('Night beyond the shoji',(.026,.058,.09),rough=.5,emission=.18)
 plaster=mat('Warm lime plaster',(.068,.032,.012),rough=.9,texture='plaster')
 
@@ -191,15 +190,7 @@ for i in range(4):
     plane('Noren · separate fabric panel',[(x-.61,10.94,4.8),(x+.61,10.94,4.8),(x+.61,10.94,7.3),(x-.61,10.94,7.3)],curtain,room)
     box('Noren top tab',(x,10.94,7.38),(.14,.12,.34),darkwood,room,b=.03)
 box('Noren bamboo rail',(9,11.02,7.45),(6,.13,.13),edgewood,room)
-# Lanterns: glowing paper octagons with real dark ribs.
-for idx,(x,y,z,size) in enumerate([(-8,4,7.0,1.2),(0,7,7.4,1.05),(7,7,7.2,.85),(-4,10,6.6,.46),(4.2,11,6.7,.45)]):
-    g=group('LANTERN %02d'%idx,(x,y,z))
-    cylinder('Washi shade',(0,0,0),size,1.30*size,lightmat,g,vertices=8)
-    for dz in [-.66,.66]:
-        o=cylinder('Lantern wooden rim',(0,0,dz*size),size*1.04,.10,darkwood,g,vertices=8)
-    for j in range(8):
-        a=j*pi/4;box('Lantern vertical rib',(size*cos(a),size*sin(a),0),(.065,.065,1.34*size),darkwood,g,b=.015)
-    cylinder('Hanging stem',(0,0,1.35),.035,1.5,black,g,vertices=12)
+# The background intentionally has no light fixtures, shades or hanging stems.
 # Soft background details: dishes and stools.
 for x in [-8,-3,2,6,10]:
     cylinder('Distant stool seat',(x,5.5,-.20),.62,.18,darkwood,room)
@@ -431,6 +422,8 @@ bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.nam
 # Game-style native rig: firm sun shadow, quiet ambient world, no softbox studio.
 bpy.ops.object.light_add(type='SUN',location=(-9,-6,7));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=3.2;o.data.angle=math.radians(2);o.data.color=(1,.60,.29);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
 bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · quiet cool fill';o.data.energy=70;o.data.size=3;o.data.color=(.80,.87,.84);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+# The only ceiling light is a rendering source, without a visible fixture.
+bpy.ops.object.light_add(type='SPOT',location=(0,.65,11.5));o=bpy.context.object;o.name='LIGHT · central warm yellow top light';o.data.energy=1800;o.data.spot_size=.76;o.data.spot_blend=.28;o.data.shadow_soft_size=.03;o.data.color=(1,.70,.30);o.rotation_euler=(Vector((0,.15,.2))-o.location).to_track_quat('-Z','Y').to_euler()
 world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.19,.15,.12,1);world.node_tree.nodes['Background'].inputs[1].default_value=.2
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=24;scene.view_settings.view_transform='Standard';scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100
 # Native source packs all textures; web export omits cameras and studio lights.
