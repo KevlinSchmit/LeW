@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#302012" />
+    <meta name="description" content="Take a seat at Kevlin's sushi counter. An original, interactive 3D portfolio scene, crafted in Blender and Three.js." />
+    <title>Kevlin — The Sushi Counter</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%239b3827'/%3E%3Cpath d='M12 42a20 20 0 0140 0M19 42a13 13 0 0126 0M26 42a6 6 0 0112 0' fill='none' stroke='%23f4dfbb' stroke-width='3'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main id="app" aria-label="A three-dimensional sushi restaurant counter">
+      <canvas id="scene" aria-label="3D sushi bar: moving sushi under glass covers, a tea set, an indigo menu, a brass bell and a resume receipt" tabindex="0"></canvas>
+      <header class="masthead">
+        <a class="brand" href="#" aria-label="Kevlin's sushi counter, reset view">
+          <span class="seal" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M5 28a15 15 0 0130 0M10 28a10 10 0 0120 0M15 28a5 5 0 0110 0"/></svg></span>
+          <span>KEVLIN SCHMIT<small>THE SUSHI COUNTER</small></span>
+        </a>
+        <div class="edition"><span class="status-dot"></span> A PORTFOLIO, SERVED FRESH <span class="edition-no">/ 01</span></div>
+      </header>
+      <div class="scene-note"><span>ひとやすみ</span><i></i>Take a seat. Stay a little.</div>
+      <footer class="controls">
+        <span class="caption">CRAFTED WITH CARE <span>·</span> OPEN ALL HOURS</span>
+        <div class="control-group" aria-label="Scene controls">
+          <button id="motion" aria-pressed="true" title="Pause conveyor"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5v10M13 5v10"/></svg><span>Conveyor on</span></button>
+          <span class="divider"></span>
+          <button id="look" aria-pressed="false" title="Drag to look around"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z"/><circle cx="10" cy="10" r="2"/></svg><span>Look around</span></button>
+        </div>
+        <button id="fullscreen" class="icon-button" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg></button>
+      </footer>
+      <div id="hint" role="status" aria-live="polite"></div>
+      <div id="loading" role="status"><span class="loading-mark">鮨</span><span class="loading-title">A little something is being prepared.</span><span class="loading-rule"><i></i></span><span class="loading-subtitle">WELCOME TO THE COUNTER</span></div>
+      <div id="error" hidden><h1>Please take another seat.</h1><p>This scene needs a browser with WebGL 2 enabled.</p><button onclick="location.reload()">Try again</button></div>
+      <div id="mobile-tip">Turn your phone sideways for the full counter.</div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

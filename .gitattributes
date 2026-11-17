@@ -1,0 +1,4 @@
+# The standalone view is generated, including upstream Three.js shader source.
+preview.html linguist-generated=true -whitespace
+*.glb binary
+*.blend binary

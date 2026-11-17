@@ -1,0 +1,22 @@
+{
+  "name": "sushi-bar-portfolio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && node scripts/export-preview.mjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "models": "python scripts/textures.py && blender --background --python-exit-code 1 --python blender/build_scene.py",
+    "test": "node scripts/smoke.mjs",
+    "models:objects": "blender --background blender/sushi-bar.blend --python-exit-code 1 --python blender/export_objects.py"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1",
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}
