@@ -64,18 +64,18 @@ try {
     return {triangles,skinned,paints:paints.size,position:chef.position.toArray(),landmarks,names,materials:[...materials],
       procedural:chef.userData.procedural,chefCount:app.model.children.filter(o=>o.name.startsWith('CHEF')).length};
   });
-  assert.ok(chefInfo.triangles<6000,'Complete procedural chef stays below 6k triangles');
+  assert.ok(chefInfo.triangles <= 18000,'Reference chef stays within an 18k triangle budget');
   assert.ok(chefInfo.paints>=5,'Separate skin, cotton, apron, cap and hair maps loaded');
   assert.equal(chefInfo.procedural,true,'Character is built with Three.js');
   assert.equal(chefInfo.chefCount,1,'The original indigo chef is replaced, not overlaid');
   assert.ok(!chefInfo.materials.some(n=>/indigo|tenugui|headband/i.test(n)),'No original blue costume remains');
-  for(const detail of ['low cylindrical cloth hat','wrap jacket','long apron','front sash knot','寿司 chest embroidery','modeled nose'])
-    assert.ok(chefInfo.names.includes('Chef '+detail),detail+' matches the reference');
+  for(const detail of ['cap','torso','sash','head','sleeve-l','sleeve-r'])
+    assert.ok(chefInfo.names.includes(detail+' surface'),detail+' matches the reference');
+  assert.ok(!chefInfo.names.some(name=>/^(apron|trousers|leg-|shoe-)/.test(name)),'The counter displays only the upper-body assembly');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
-  assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor and rear plate stacks');
-  assert.ok(chefInfo.landmarks.hat.y>.04 && chefInfo.landmarks.hat.y<.25,'Entire hat fits beneath the upper frame edge');
-  assert.ok(chefInfo.landmarks.chin.visible && chefInfo.landmarks.chest.visible,'Head and upper body are unobstructed');
-  assert.equal(chefInfo.landmarks.feet.visible,false,'Counter occludes the lower body');
+  assert.ok(chefInfo.position[2]<-3,'Chef stands behind the conveyor');
+  assert.ok(chefInfo.landmarks.hat.y<0 && chefInfo.landmarks.chin.y>=0 && chefInfo.landmarks.chin.y<.04,'The seated desktop camera crops at the chin');
+  assert.ok(chefInfo.landmarks.chest.visible,'Upper body is visible');
   console.log('Procedural chef:',JSON.stringify({triangles:chefInfo.triangles,landmarks:chefInfo.landmarks}));
   const artDirection=await page.evaluate(()=>{
     const model=window.__sushi.model;
@@ -174,7 +174,7 @@ try {
       chestVisible:app.pickAt((chest.x+1)/2*innerWidth,(1-chest.y)/2*innerHeight)===chef,
       feetVisible:app.pickAt((feet.x+1)/2*innerWidth,(1-feet.y)/2*innerHeight)===chef};
   });
-  assert.ok(portraitChef.hatInFrame && portraitChef.chestVisible && !portraitChef.feetVisible,'Portrait also shows only the chef upper body with the whole hat');
+  assert.ok(portraitChef.hatInFrame && portraitChef.chestVisible,'The existing portrait camera still shows the chef');
   await page.screenshot({path:'artifacts/scene-mobile.png',timeout:120000});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.reload();

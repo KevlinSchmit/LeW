@@ -126,13 +126,13 @@ export function makePlastic(source,bottle=false) {
 }
 
 /** Inverted hulls give the low-poly chef a readable black silhouette. */
-export function outlineChef(root) {
+export function outlineChef(root, width = .028) {
   const outline=new THREE.MeshBasicMaterial({name:'CHEF · black outline',color:0x080605,side:THREE.BackSide});
   outline.onBeforeCompile=shader=>{
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
-      'vec3 transformed=vec3(position+normal*.028);');
+      `vec3 transformed=vec3(position+normal*${width.toFixed(5)});`);
   };
-  outline.customProgramCacheKey=()=> 'chef-outline-v1';
+  outline.customProgramCacheKey=()=> `chef-outline-${width}`;
   const meshes=[];root.traverse(o=>{if(o.isMesh && !o.userData.noOutline)meshes.push(o);});
   for(const mesh of meshes){
     const hull=new THREE.Mesh(mesh.geometry,outline);hull.name='Chef silhouette ink';
