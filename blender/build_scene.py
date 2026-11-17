@@ -24,40 +24,44 @@ def mat(name,color,metal=0,rough=.4,texture=None,emission=0,surface=None):
         rm=m.node_tree.nodes.new('ShaderNodeTexImage');rm.image=bpy.data.images.load(str(TEX/(surface+'_roughness.png')),check_existing=True);rm.image.colorspace_settings.name='Non-Color'
         m.node_tree.links.new(rm.outputs['Color'],bs.inputs['Roughness'])
     if surface in ['glaze','wood','fish']:
-        bs.inputs['Coat Weight'].default_value=.35 if surface!='wood' else .25;bs.inputs['Coat Roughness'].default_value=.18
+        bs.inputs['Coat Weight'].default_value=.08;bs.inputs['Coat Roughness'].default_value=.18
     if emission:bs.inputs['Emission Color'].default_value=(*color,1);bs.inputs['Emission Strength'].default_value=emission
     return m
 wood=mat('Honey oak · fine grain',(.48,.23,.08),rough=.29,texture='wood',surface='wood')
-darkwood=mat('Smoked walnut',(.038,.013,.004),rough=.4)
-edgewood=mat('End-grain & bamboo',(.35,.155,.045),rough=.35)
-gold=mat('Warm polished brass',(.73,.43,.12),metal=.85,rough=.2,surface='metal')
-steel=mat('Brushed champagne steel',(.39,.33,.26),metal=.78,rough=.34,surface='metal')
+darkwood=mat('Smoked walnut',(.038,.013,.004),rough=.82,texture='darkwood')
+edgewood=mat('End-grain & bamboo',(.35,.155,.045),rough=.72,texture='bamboo')
+gold=mat('Warm polished brass',(.73,.43,.12),metal=.62,rough=.42,texture='brass',surface='metal')
+steel=mat('Brushed champagne steel',(.39,.33,.26),metal=.45,rough=.56,texture='steel',surface='metal')
 black=mat('Blackened iron',(.025,.028,.025),metal=.55,rough=.32)
-cream=mat('Ivory glazed ceramic',(.79,.67,.46),rough=.23,surface='glaze')
-olive=mat('Celadon glaze',(.38,.43,.19),rough=.22,surface='glaze')
+cream=mat('Ivory glazed ceramic',(.79,.67,.46),rough=.65,texture='ceramic',surface='glaze')
+olive=mat('Celadon glaze',(.43,.53,.32),rough=.62,surface='glaze')
 floral=mat('Hand-painted celadon · sakura',(.38,.43,.19),rough=.25,texture='blossom',surface='glaze')
+lidPaint=mat('Painted celadon lid · floral medallion',(.43,.53,.32),rough=.65,texture='tea_lid',surface='glaze')
 red=mat('Vermilion lacquer',(.57,.035,.019),rough=.24,surface='glaze')
 navy=mat('Indigo lacquer',(.10,.16,.27),rough=.28,surface='glaze')
 green=mat('Olive lacquer',(.35,.38,.075),rough=.25,surface='glaze')
-rice=mat('Pearl rice',(.78,.71,.56),rough=.40,surface='rice')
+rice=mat('Pearl rice',(.78,.71,.56),rough=.82,texture='rice',surface='rice')
 nori=mat('Nori seaweed',(.032,.047,.025),rough=.47,texture='nori',surface='nori')
 omelet=mat('Tamagoyaki · golden egg',(.97,.63,.045),rough=.33,texture='egg',surface='rice')
-roe=mat('Ikura · orange pearl',(.98,.235,.008),rough=.16)
+roe=mat('Ikura · orange pearl',(.98,.235,.008),rough=.42,texture='roe')
 bs=roe.node_tree.nodes.get('Principled BSDF');bs.inputs['Subsurface Weight'].default_value=.12;bs.inputs['Coat Weight'].default_value=.4
 salmon=mat('Salmon · cut striations',(.94,.35,.10),rough=.26,texture='salmon',surface='fish')
 tuna=mat('Tuna · cut striations',(.75,.07,.05),rough=.26,texture='tuna',surface='fish')
 glass=mat('GLASS · cloche',(.99,.98,.96),rough=.035,surface='plastic')
 bs=glass.node_tree.nodes.get('Principled BSDF');bs.inputs['Transmission Weight'].default_value=1;bs.inputs['IOR'].default_value=1.47
-tea=mat('Fresh green tea',(.07,.13,.008),rough=.16)
+ink=mat('Ink · selective hand-drawn contours',(.065,.073,.049),rough=1)
+highlight=mat('PET · painted highlight',(.86,.87,.73),rough=.75,emission=.12)
+highlight.diffuse_color=(.86,.87,.73,.60)
+highlight.node_tree.nodes.get('Principled BSDF').inputs['Alpha'].default_value=.60
+tea=mat('Fresh green tea',(.07,.13,.008),rough=.4,texture='tea')
 soy=mat('Dark soy sauce',(.035,.009,.003),rough=.17)
-pink=mat('Pickled ginger',(.87,.35,.27),rough=.38)
+pink=mat('Pickled ginger',(.74,.43,.31),rough=.8)
 menuMat=mat('Woven indigo menu',(.10,.12,.20),rough=.72,texture='menu',surface='cloth')
 paper=mat('Warm cotton paper',(.91,.79,.61),rough=.8)
-receiptMat=mat('Resume · printed paper',(.91,.79,.61),rough=.8,texture='receipt')
 curtain=mat('Indigo noren fabric',(.07,.1,.19),rough=.9,texture='curtain')
 lightmat=mat('Washi lantern glow',(1,.55,.19),rough=.7,emission=2.2)
 blueglass=mat('Night beyond the shoji',(.026,.058,.09),rough=.5,emission=.18)
-plaster=mat('Warm lime plaster',(.068,.032,.012),rough=.9)
+plaster=mat('Warm lime plaster',(.068,.032,.012),rough=.9,texture='plaster')
 
 current=None
 
@@ -73,7 +77,7 @@ def finish(o,name,material,parent=None,smooth=True):
     return o
 
 def bevel(o,w=.06,seg=3):
-    mod=o.modifiers.new('Soft manufactured edges','BEVEL');mod.width=w;mod.segments=seg
+    mod=o.modifiers.new('Soft manufactured edges','BEVEL');mod.width=w;mod.segments=min(seg,2)
     mod=o.modifiers.new('Weighted corner normals','WEIGHTED_NORMAL')
     return o
 
@@ -83,14 +87,14 @@ def box(name,loc,scale,material,parent=None,b=.04):
     if b:bevel(o,b)
     return o
 
-def sphere(name,loc,scale,material,parent=None,seg=24,rings=12):
+def sphere(name,loc,scale,material,parent=None,seg=16,rings=8):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=seg,ring_count=rings,radius=1,location=loc);o=bpy.context.object;o.scale=scale;return finish(o,name,material,parent)
 
-def cylinder(name,loc,radius,depth,material,parent=None,vertices=64):
+def cylinder(name,loc,radius,depth,material,parent=None,vertices=32):
     bpy.ops.mesh.primitive_cylinder_add(vertices=vertices,radius=radius,depth=depth,location=loc);o=bpy.context.object;finish(o,name,material,parent);bevel(o,.025,2);return o
 
 def torus(name,loc,major,minor,material,parent=None):
-    bpy.ops.mesh.primitive_torus_add(major_radius=major,minor_radius=minor,major_segments=64,minor_segments=10,location=loc);return finish(bpy.context.object,name,material,parent)
+    bpy.ops.mesh.primitive_torus_add(major_radius=major,minor_radius=minor,major_segments=32,minor_segments=6,location=loc);return finish(bpy.context.object,name,material,parent)
 
 def mesh(name,verts,faces,material,parent=None,uv=None):
     me=bpy.data.meshes.new(name);me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);finish(o,name,material,parent)
@@ -100,7 +104,7 @@ def mesh(name,verts,faces,material,parent=None,uv=None):
             for li,vi in zip(face.loop_indices,face.vertices):layer.data[li].uv=uv[vi]
     return o
 
-def lathe(name,profile,material,parent=None,loc=(0,0,0),n=64):
+def lathe(name,profile,material,parent=None,loc=(0,0,0),n=32):
     verts=[];uv=[]
     zmin=min(z for r,z in profile);zmax=max(z for r,z in profile)
     for i,(r,z) in enumerate(profile):
@@ -112,7 +116,7 @@ def lathe(name,profile,material,parent=None,loc=(0,0,0),n=64):
     return mesh(name,verts,faces,material,parent,uv)
 
 def path(name,points,radius,material,parent=None,cyclic=False):
-    cu=bpy.data.curves.new(name,'CURVE');cu.dimensions='3D';cu.resolution_u=16;cu.bevel_depth=radius;cu.bevel_resolution=3
+    cu=bpy.data.curves.new(name,'CURVE');cu.dimensions='3D';cu.resolution_u=4;cu.bevel_depth=radius;cu.bevel_resolution=1
     sp=cu.splines.new('POLY');sp.points.add(len(points)-1)
     for p,co in zip(sp.points,points):p.co=(*co,1)
     sp.use_cyclic_u=cyclic;o=bpy.data.objects.new(name,cu);bpy.context.collection.objects.link(o);o.data.materials.append(material)
@@ -128,9 +132,9 @@ def join(objects,name):
 
 # Counter: individual joined planks, rounded front apron, and seams.
 room=group('RESTAURANT · architecture')
-for i in range(7):
-    box('Oak counter plank %02d'%i,(0,-5.25+i*1.05,-.18),(25,1.045,.35),wood,room,b=.055)
-box('Counter front edge',(0,-5.88,-.43),(25,.17,.45),edgewood,room,b=.08)
+for i in range(14):
+    box('Oak counter plank %02d'%i,(0,-12.60+i*1.05,-.18),(25,1.045,.35),wood,room,b=.055)
+box('Counter front edge',(0,-13.23,-.43),(25,.17,.45),edgewood,room,b=.08)
 # Conveyor is a shallow racetrack. Front and rear lanes are independent meshes.
 conveyor=group('CONVEYOR · belt and rail')
 box('Conveyor brushed front',(0,1.08,.82),(25,.28,1.62),steel,conveyor,b=.09)
@@ -138,18 +142,18 @@ box('Conveyor black shadow line',(0,.91,1.53),(25,.06,.075),black,conveyor,b=.01
 box('Conveyor lower oak trim',(0,.88,.08),(25,.18,.18),darkwood,conveyor,b=.025)
 box('Conveyor upper rim',(0,.95,1.73),(25,.18,.11),steel,conveyor,b=.025)
 box('Conveyor bed',(0,2.12,1.60),(25,2.45,.22),black,conveyor,b=.1)
-beltmat=mat('Warm conveyor tiles',(.38,.34,.27),metal=.38,rough=.36)
+beltmat=mat('Warm conveyor tiles',(.38,.34,.27),metal=.15,rough=.72,texture='belt')
 for i in range(50):box('Belt tile %02d'%i,(-12.25+i*.50,2.05,1.76),(.487,2.10,.05),beltmat,conveyor,b=.08)
 box('Conveyor rear rim',(0,3.18,1.75),(25,.13,.14),steel,conveyor,b=.02)
 # Back service counter, walls, and timber framing. No people.
-box('Dark timber ceiling',(0,5,9.0),(55,36,.40),darkwood,room)
+box('Dark timber ceiling',(0,5,14.0),(55,36,.40),darkwood,room)
 for x in [-19,19]:box('Restaurant side wall',(x,7,3),(1,30,14),plaster,room)
 box('Back service counter',(0,7,1.18),(25,2.0,.28),wood,room,b=.08)
 box('Back service frontage',(0,7,0),(25,1.7,2.2),darkwood,room,b=.03)
 box('Rear plaster wall',(0,12,4.5),(55,.3,14),plaster,room)
 for x in [-12,-8,-4,0,4,8,12]:
     box('Timber pillar',(x,11.72,4.2),(.32,.42,9),darkwood,room,b=.03)
-    box('Ceiling joist',(x,4,8.2),(.27,16,.35),darkwood,room,b=.03)
+    box('Ceiling joist',(x,4,13.2),(.27,16,.35),darkwood,room,b=.03)
 for z in [2.2,6.5,8.4]:box('Horizontal timber',(0,11.60,z),(27,.4,.32),darkwood,room)
 # Shoji grid with blue night behind it.
 for x in [-9,-5,-1,3]:
@@ -191,11 +195,17 @@ for col,(x,y,count,r) in enumerate([(-10.3,1.0,15,1.6),(-8.6,3.0,10,1.5)]):
 # Tea pot: hollow, wheel-thrown body, separate lid, spout, handle and wicker wraps.
 g=group('TEAPOT · sakura celadon',(-7.7,-2.55,.16))
 lathe('Teapot foot',[(0,0),(.75,0),(.85,.10),(.85,.20),(.7,.25),(0,.25)],olive,g)
-lathe('Teapot hand-painted body',[(.72,.15),(1.03,.22),(1.28,.45),(1.34,.85),(1.24,1.35),(.99,1.65),(.81,1.73),(.75,1.67)],floral,g,n=96)
-lathe('Teapot lid',[(0,1.80),(.5,1.79),(.83,1.67),(.88,1.68),(.87,1.76),(.6,1.9),(.25,1.95),(0,1.95)],olive,g,n=80)
+lathe('Teapot hand-painted body',[(.72,.15),(1.03,.22),(1.28,.45),(1.34,.85),(1.24,1.35),(.99,1.65),(.81,1.73),(.75,1.67)],floral,g,n=32)
+lid=lathe('Teapot lid',[(0,1.80),(.5,1.79),(.83,1.67),(.88,1.68),(.87,1.76),(.6,1.9),(.25,1.95),(0,1.95)],lidPaint,g,n=32)
+# Radial UVs keep the illustrated crown undistorted.
+for polygon in lid.data.polygons:
+    for li,vi in zip(polygon.loop_indices,polygon.vertices):
+        v=lid.data.vertices[vi].co;lid.data.uv_layers.active.data[li].uv=(v.x/1.8+.5,v.y/1.8+.5)
 torus('Teapot lid rim',(0,0,1.76),.85,.035,cream,g)
 cylinder('Teapot lid knob',(0,0,2.03),.20,.20,olive,g)
 sphere('Teapot lid knob cap',(0,0,2.14),(.25,.25,.08),olive,g)
+torus('Teapot ink foot seam',(0,0,.21),.84,.017,ink,g)
+torus('Teapot ink lid contour',(0,0,1.72),.87,.015,ink,g)
 # Tapered upturned spout using cross-section rings.
 vs=[];faces=[]
 for i in range(13):
@@ -208,8 +218,8 @@ sp=mesh('Teapot hollow pouring spout',vs,faces,olive,g);so=sp.modifiers.new('Cer
 # Handle arches in XZ plane, in front of its attachments.
 pts=[(-1.22*cos(t),.06,1.43+1.75*sin(t)) for t in [i*pi/80 for i in range(81)]]
 path('Teapot bamboo carrying arch',pts,.12,edgewood,g)
-for i in range(62):
-    t=(i+.5)*pi/62;x=-1.22*cos(t);z=1.43+1.75*sin(t)
+for i in range(26):
+    t=(i+.5)*pi/26;x=-1.22*cos(t);z=1.43+1.75*sin(t)
     tangent=Vector((1.22*sin(t),0,1.75*cos(t))).normalized();basis=Vector((0,1,0));other=tangent.cross(basis)
     coils=[]
     for j in range(17):
@@ -223,11 +233,12 @@ torus('Teapot coaster lip',(-7.7,-2.55,.21),1.51,.055,darkwood)
 
 # Tea cup, hollow with visible interior and drink surface.
 g=group('TEACUP · sakura celadon',(-4.9,-4.0,.12))
-lathe('Tea cup painted exterior',[(.48,.05),(.62,.09),(.72,.27),(.78,1.27),(.80,1.40),(.75,1.46),(.69,1.40),(.66,.37),(.48,.26)],floral,g,n=80)
+lathe('Tea cup painted exterior',[(.48,.05),(.62,.09),(.72,.27),(.78,1.27),(.80,1.40),(.75,1.46),(.69,1.40),(.66,.37),(.48,.26)],floral,g,n=32)
 torus('Tea cup cream lip',(0,0,1.42),.746,.055,cream,g)
 cylinder('Green tea surface',(0,0,1.24),.688,.018,tea,g)
 torus('Tea meniscus',(0,0,1.25),.668,.012,olive,g)
 cylinder('Tea cup foot',(0,0,.10),.50,.16,olive,g)
+torus('Tea cup drawn rim',(0,0,1.423),.79,.012,ink,g)
 cylinder('Tea cup wooden coaster',(-4.9,-4.0,.09),.95,.18,edgewood)
 torus('Tea coaster lip',(-4.9,-4,.18),.84,.026,darkwood)
 # Sauce dish left of the book.
@@ -238,7 +249,8 @@ for loc,sc in [((0,-.46,.36),(1.29,.16,.16)),((0,.46,.36),(1.29,.16,.16)),((-.57
 
 # Indigo bound menu with true paper block, string loops and textured top cover.
 g=group('MENU · indigo portfolio book',(-.5,-3.1,.10))
-g.rotation_euler[2]=-.10
+g.rotation_euler[2]=-.14
+g.scale=(.68,.68,.68)
 box('Menu lower fabric cover',(0,0,.05),(4.65,3.65,.13),navy,g,b=.075)
 box('Menu cotton paper block',(0,0,.19),(4.45,3.43,.18),paper,g,b=.025)
 for z in [.13,.17,.21,.25]:box('Visible paper page edge',(0,-1.72,z),(4.40,.015,.008),cream,g,b=0)
@@ -250,7 +262,7 @@ for i in range(5):
     path('Menu hand-stitched cord',[(-2.10,y,.44),(-2.23,y+.04,.48),(-2.38,y+.02,.4),(-2.45,y,0),(-2.35,y-.05,-.02),(-2.09,y-.04,.02)],.034,edgewood,g)
     sphere('Menu binding knot',(-2.11,y,.45),(.067,.061,.05),edgewood,g)
 # Chopsticks on a blue striped ceramic rest.
-g=group('CHOPSTICKS · bamboo and porcelain',(-.1,-5.35,.12))
+g=group('CHOPSTICKS · bamboo and porcelain',(-.1,-5.65,.12))
 box('Chopstick porcelain rest',(-2.10,0,.07),(.64,.95,.23),cream,g,b=.09)
 for x in [-2.23,-2.11]:box('Rest indigo inlay',(x,0,.19),(.045,.89,.008),navy,g,b=.006)
 for y in [-.14,.13]:
@@ -262,45 +274,63 @@ for y in [-.14,.13]:
 g=group('BELL · brass service bell',(3.7,-2.95,.09))
 cylinder('Bell walnut plinth',(0,0,.13),.96,.26,darkwood,g)
 cylinder('Bell brass base',(0,0,.31),.82,.13,gold,g)
-lathe('Bell polished brass dome',[(.77,.36),(.79,.43),(.75,.63),(.62,.86),(.39,1.03),(.14,1.10),(0,1.10)],gold,g,n=96)
+lathe('Bell polished brass dome',[(.77,.36),(.79,.43),(.75,.63),(.62,.86),(.39,1.03),(.14,1.10),(0,1.10)],gold,g,n=32)
 torus('Bell lip',(0,0,.41),.78,.03,gold,g)
 cylinder('Bell button stem',(0,0,1.20),.055,.23,gold,g,vertices=32)
-cylinder('Bell button cap',(0,0,1.33),.14,.07,gold,g,vertices=48)
+cylinder('Bell button cap',(0,0,1.33),.14,.07,gold,g,vertices=24)
 
-# Receipt printer: angled cream case, two colored buttons, real curved paper.
-g=group('RESUME · receipt printer',(6.65,-2.7,.09))
-box('Printer dark lower foot',(0,0,.12),(2.80,2.30,.22),darkwood,g,b=.12)
-box('Printer ivory enclosure',(0,0,.59),(2.8,2.30,.94),cream,g,b=.13)
-box('Printer angled top',(0,-.05,1.07),(2.73,2.12,.17),cream,g,b=.08)
-box('Printer paper slot',(0,.59,1.18),(1.85,.18,.045),black,g,b=.03)
-box('Printer green key',(-.56,-.54,1.18),(.5,.4,.08),olive,g,b=.035)
-box('Printer orange key',(.50,-.54,1.18),(.5,.4,.08),red,g,b=.035)
-verts=[];uv=[]
-for i in range(41):
-    t=i/40
-    # paper rises out of the slot and curls gently toward the visitor
-    y=.60+.20*sin(t*pi)-.95*t**3;z=1.20+1.95*t-.25*t**8
-    for x in [-.87,.87]:verts.append((x,y,z));uv.append((0 if x<0 else 1,t))
-faces=[]
-for i in range(40):a=i*2;faces.append((a,a+1,a+3,a+2))
-o=mesh('Resume printed curling receipt',verts,faces,receiptMat,g,uv);so=o.modifiers.new('Paper thickness','SOLIDIFY');so.thickness=.018
-# Dark soy dispenser and ginger jar, right of printer.
+# Compact counter POS: cream wedge body, tilted display, tactile keys; no paper.
+posBody=mat('POS · painted ivory ABS',(.8,.76,.63),rough=.7,texture='pos_body')
+posScreen=mat('POS · olive LCD',(.2,.3,.22),rough=.82,texture='pos_screen',emission=.12)
+labelMat=mat('Glass bottle · painted label',(.9,.8,.6),rough=.9,texture='bottle_label')
+g=group('POS · counter terminal',(6.65,-2.9,.09))
+g.rotation_euler[2]=-.13
+box('POS charcoal rubber foot',(0,0,.12),(2.65,2.3,.22),black,g,b=.08)
+# Wedge sides slope upward toward the back.
+v=[(-1.32,-1.12,.22),(1.32,-1.12,.22),(1.32,1.12,.22),(-1.32,1.12,.22),(-1.32,-1.12,.61),(1.32,-1.12,.61),(1.32,1.12,1.08),(-1.32,1.12,1.08)]
+o=mesh('POS sculpted wedge case',v,[(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)],posBody,g);bevel(o,.10,2)
+box('POS front dark seam',(0,-1.135,.31),(2.42,.025,.055),black,g,b=.01)
+# Screen face is tilted toward the seated visitor.
+display=group('POS display');display.parent=g;display.location=(0,.46,1.35);display.rotation_euler[0]=math.radians(25)
+box('POS screen ivory surround',(0,0,0),(2.43,.24,1.63),posBody,display,b=.10)
+box('POS inset charcoal bezel',(0,-.142,.02),(2.16,.045,1.34),black,display,b=.06)
+plane('POS illustrated LCD',[(-.97,-.171,-.51),(.97,-.171,-.51),(.97,-.171,.57),(-.97,-.171,.57)],posScreen,display)
+# Keypad sits on the sloped front deck.
+for row in range(3):
+    for col in range(3):
+        x=-.59+col*.40;y=-.90+row*.32;z=.69+row*.065
+        box('POS tactile key %d %d'%(row,col),(x,y,z),(.31,.24,.09),cream,g,b=.025)
+        box('POS key ink mark',(x,y-.015,z+.05),(.065,.032,.005),black,g,b=0)
+for row,m in enumerate([red,olive]):box('POS cancel confirm key',(.89,-.85+row*.42,.72+row*.08),(.34,.32,.10),m,g,b=.025)
+box('POS side card slot',(1.335,-.12,.68),(.025,.82,.085),black,g,b=.01)
+for i in range(4):box('POS side vent',(1.335,.49+i*.12,.48),(.025,.05,.17),black,g,b=.006)
+box('POS power indicator',(-1.02,-1.14,.48),(.09,.018,.045),olive,g,b=.005)
+# Glass is separate from the molded PET covers, with a cool green wall tint.
+bottleGlass=glass.copy();bottleGlass.name='BOTTLE GLASS · green edged soda glass'
+# Dark soy dispenser and ginger jar.
 g=group('CONDIMENTS · soy and pickled ginger',(9.2,-1.9,.12))
-lathe('Soy bottle glass',[(0,0),(.47,0),(.52,.12),(.5,.72),(.30,1.3),(.26,1.9),(.29,1.96)],glass,g)
+lathe('Soy bottle glass',[(0,0),(.47,0),(.52,.12),(.5,.72),(.30,1.3),(.26,1.9),(.29,1.96)],bottleGlass,g)
 lathe('Soy inside bottle',[(0,.03),(.45,.03),(.46,.7),(.29,1.2),(0,1.2)],soy,g)
 lathe('Soy red cap',[(0,1.88),(.39,1.88),(.4,2.32),(.49,2.34),(.49,2.47),(0,2.47)],red,g)
-lathe('Ginger glass jar',[(0,0),(.60,0),(.64,.10),(.64,1.24),(.60,1.30)],glass,g,loc=(1.1,-.40,0))
+lathe('Ginger glass jar',[(0,0),(.60,0),(.64,.10),(.64,1.24),(.60,1.30)],bottleGlass,g,loc=(1.1,-.40,0))
 cylinder('Ginger wooden tray',(1.1,-.40,.06),.72,.12,edgewood,g)
 for i in range(55):
     a=random.uniform(0,pi*2);r=random.uniform(0,.48);z=random.uniform(.18,.92)
-    o=sphere('Individual ginger curl',(1.1+r*cos(a),-.40+r*sin(a),z),(.16,.10,.13),pink,g,seg=12,rings=8);o.rotation_euler=(random.random()*2,random.random()*2,random.random()*2)
-lathe('Jar glass lid',[(0,1.32),(.67,1.32),(.69,1.37),(.65,1.42),(0,1.43)],glass,g,loc=(1.1,-.40,0))
+    o=sphere('Individual ginger curl',(1.1+r*cos(a),-.40+r*sin(a),z),(.16,.10,.13),pink,g,seg=8,rings=6);o.rotation_euler=(random.random()*2,random.random()*2,random.random()*2)
+lathe('Jar glass lid',[(0,1.32),(.67,1.32),(.69,1.37),(.65,1.42),(0,1.43)],bottleGlass,g,loc=(1.1,-.40,0))
 sphere('Jar lid knob',(1.1,-.40,1.51),(.14,.14,.12),steel,g)
+
+# Paper labels and dark glass edge rings give each vessel a readable material.
+plane('Soy bottle label',[(-.37,-.475,.36),(.37,-.475,.36),(.37,-.475,.97),(-.37,-.475,.97)],labelMat,g)
+plane('Ginger jar label',[(.64,-1.04,.29),(1.56,-1.04,.29),(1.56,-1.04,.75),(.64,-1.04,.75)],labelMat,g)
+for z in [.10,1.26]:torus('Ginger glass heavy edge',(1.1,-.40,z),.62,.024,bottleGlass,g)
+plane('Soy bottle hard glass glint',[(-.34,-.39,.35),(-.30,-.42,.35),(-.19,-.27,1.48),(-.23,-.25,1.48)],highlight,g)
+plane('Ginger jar hard glass glint',[(.61,-.82,.21),(.65,-.86,.21),(.65,-.86,1.12),(.61,-.82,1.12)],highlight,g)
 
 # Four named traveling plate assemblies. Local coordinates allow independent animation.
 for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon',2.18,navy),('tuna',6.55,green)]):
     g=group('SUSHI_'+kind,(x,2.05,1.79))
-    lathe(kind+' · lacquer plate',[(0,0),(.75,0),(1.45,.07),(1.88,.20),(1.92,.26),(1.89,.32),(1.76,.29),(1.54,.22),(0,.21)],pm,g,n=96)
+    lathe(kind+' · lacquer plate',[(0,0),(.75,0),(1.45,.07),(1.88,.20),(1.92,.26),(1.89,.32),(1.76,.29),(1.54,.22),(0,.21)],pm,g,n=32)
     torus(kind+' · plate rim',(0,0,.28),1.85,.035,pm,g)
     for r in [1.42,1.52]:torus(kind+' · inset glaze line',(0,0,.24),r,.012,cream if kind!='egg' else olive,g)
     # glass bell jar is a separate mesh, never part of the food
@@ -308,15 +338,23 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
     profile=[]
     for k in range(len(control)-1):
         p0=Vector(control[max(0,k-1)]);p1=Vector(control[k]);p2=Vector(control[k+1]);p3=Vector(control[min(len(control)-1,k+2)])
-        for sub in range(7):
-            t=sub/7
+        for sub in range(2):
+            t=sub/2
             v=.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t)
             profile.append((max(0,v.x),v.y))
     profile.append(control[-1])
-    cloche=lathe(kind+' · GLASS cloche',profile,glass,g,n=112)
+    cloche=lathe(kind+' · GLASS cloche',profile,glass,g,n=40)
     shell=cloche.modifiers.new('Thin molded plastic wall','SOLIDIFY');shell.thickness=.022;shell.offset=-1
-    lathe(kind+' · GLASS molded foot',[(1.79,.30),(1.83,.30),(1.84,.32),(1.83,.36),(1.79,.36)],glass,g,n=112)
+    lathe(kind+' · GLASS molded foot',[(1.79,.30),(1.83,.30),(1.84,.32),(1.83,.36),(1.79,.36)],glass,g,n=40)
     torus(kind+' · glass lower rolled rim',(0,0,.32),1.77,.025,glass,g)
+    # Angular painted strokes on opposite sides of the PET cover.
+    for a,top in [(-2.25,8),(-.92,6)]:
+        vertices=[]
+        for k in range(2,top+1):
+            r,z=profile[k];width=.014+.014*sin((k-1)/(top-1)*pi)
+            for theta in [a-width,a+width]:vertices.append((r*cos(theta),r*sin(theta),z+.012))
+        mesh(kind+' · PET hard highlight',vertices,[(i,i+1,i+3,i+2) for i in range(0,len(vertices)-2,2)],highlight,g)
+    torus(kind+' · ink plate edge',(0,0,.225),1.91,.014,ink,g)
     cylinder(kind+' · sign clip',(0,.10,2.31),.095,.20,steel,g,vertices=24)
     # sign: a small ceramic rounded square with original painted art.
     sg=group(kind+' · ceramic identification sign');sg.parent=g;sg.location=(0,.1,2.72);sg.rotation_euler=(math.radians(-10),math.radians(-9 if idx%2==0 else 8),0)
@@ -327,20 +365,20 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
         for ix in [-.48,.47]:
             # Each gunkan has a rice base, wavy dark seaweed collar and translucent roe.
             sphere('Gunkan rice base',(ix,0,.45),(.44,.44,.22),rice,g)
-            wrap=lathe('Gunkan nori wrap',[(.48,.25),(.50,.40),(.50,.86),(.48,.90),(.45,.87),(.46,.40)],nori,g,loc=(ix,0,0),n=80)
+            wrap=lathe('Gunkan nori wrap',[(.48,.25),(.50,.40),(.50,.86),(.48,.90),(.45,.87),(.46,.40)],nori,g,loc=(ix,0,0),n=32)
             for vertex in wrap.data.vertices:
                 a=math.atan2(vertex.co.y,vertex.co.x-ix);wave=.012*sin(a*13)+.008*cos(a*23+vertex.co.z*8)
                 vertex.co.x+=cos(a)*wave;vertex.co.y+=sin(a)*wave;vertex.co.z+=.010*sin(a*9)
-            for j in range(54):
+            for j in range(34):
                 a=random.random()*2*pi;r=.40*math.sqrt(random.random());z=.88+.16*(1-r/.5)+random.uniform(-.03,.06)
-                sphere('Ikura individual roe',(ix+r*cos(a),r*sin(a),z),(.09,.09,.09),roe,g,seg=20,rings=12)
+                sphere('Ikura individual roe',(ix+r*cos(a),r*sin(a),z),(.09,.09,.09),roe,g,seg=10,rings=6)
     else:
-        sphere(kind+' · rice body',(0,0,.50),(.98,.53,.30),rice,g,seg=32,rings=16)
+        sphere(kind+' · rice body',(0,0,.50),(.98,.53,.30),rice,g,seg=20,rings=10)
         grains=[]
-        for j in range(265):
+        for j in range(48):
             a=random.uniform(0,2*pi);v=random.uniform(-.85,.85);fac=math.sqrt(1-v*v)
             xx=.98*fac*cos(a);yy=.53*fac*sin(a);zz=.50+.29*v
-            o=sphere('Rice grain',(xx,yy,zz),(.105+random.uniform(-.012,.012),.051,.061),rice,g,seg=12,rings=8);o.rotation_euler=(random.uniform(-.5,.5),random.uniform(-.5,.5),random.uniform(0,pi));grains.append(o)
+            o=sphere('Rice grain',(xx,yy,zz),(.105+random.uniform(-.012,.012),.051,.061),rice,g,seg=8,rings=6);o.rotation_euler=(random.uniform(-.5,.5),random.uniform(-.5,.5),random.uniform(0,pi));grains.append(o)
         join(grains,kind+' · sculpted individual rice grains')
         if kind=='egg':
             ob=box('Tamagoyaki folded egg',(0,0,.99),(2.15,1.03,.38),omelet,g,b=.07);ob.rotation_euler[2]=-.07
@@ -350,24 +388,24 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
             mesh('Tamagoyaki wide seaweed ribbon',verts,[(0,1,3,2),(2,3,5,4),(4,5,7,6)],nori,g)
         else:
             vs=[];uv=[];faces=[]
-            for i in range(33):
-                u=i/32;x=(u-.5)*2.52
-                for j in range(17):
-                    v=j/16;y=(v-.5)*1.22
+            for i in range(13):
+                u=i/12;x=(u-.5)*2.52
+                for j in range(7):
+                    v=j/6;y=(v-.5)*1.22
                     z=.65+.47*max(0,cos(x/1.38*pi/2))+.085*cos(y/.65*pi/2)+.01*sin(x*9+y*4)
                     vs.append((x,y,z));uv.append((u,v))
-            for i in range(32):
-                for j in range(16):a=i*17+j;faces.append((a,a+17,a+18,a+1))
+            for i in range(12):
+                for j in range(6):a=i*7+j;faces.append((a,a+7,a+8,a+1))
             o=mesh(kind+' · curved fish fillet',vs,faces,salmon if kind=='salmon' else tuna,g,uv)
             so=o.modifiers.new('Thick hand-cut fish','SOLIDIFY');so.thickness=.19;bevel(o,.045,4)
 
 # Camera for the editable native scene, matching Three.js startup view.
-bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=30;bpy.context.scene.camera=cam
-# Studio lights retained in the Blender source; the web app creates its own tuned rig.
-for name,loc,power,size,color in [('Counter softbox',(-4,-5,9),1400,8,(1,.54,.24)),('Ceiling glow',(5,3,8),1100,7,(1,.43,.18)),('Window fill',(-7,9,5),180,5,(.45,.60,1))]:
-    bpy.ops.object.light_add(type='AREA',location=loc);o=bpy.context.object;o.name=name;o.data.energy=power;o.data.shape='DISK';o.data.size=size;o.data.color=color;o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
-world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.12,.075,.04,1);world.node_tree.nodes['Background'].inputs[1].default_value=.4
-scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=48;scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100
+bpy.ops.object.camera_add(location=(0,-19.8,10.8));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=27;bpy.context.scene.camera=cam
+# Game-style native rig: firm sun shadow, quiet ambient world, no softbox studio.
+bpy.ops.object.light_add(type='SUN',location=(-7,-6,12));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=2.1;o.data.angle=math.radians(2);o.data.color=(1,.94,.85);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · quiet cool fill';o.data.energy=450;o.data.size=3;o.data.color=(.80,.87,.84);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.65,.66,.59,1);world.node_tree.nodes['Background'].inputs[1].default_value=.6
+scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=24;scene.view_settings.view_transform='Standard';scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100
 # Native source packs all textures; web export omits cameras and studio lights.
 bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'blender'/'sushi-bar.blend'))

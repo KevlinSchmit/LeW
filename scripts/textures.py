@@ -1,153 +1,191 @@
-"""Deterministic, original painted textures for the editable Blender scene."""
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+"""Original hand-painted game-asset textures. Seeded, deliberately 256–512px.
+Painted contours, brushwork and ambient shading carry detail on simple meshes.
+No photographs, external art or model downloads are used.
+"""
+from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import random, math
+OUT=Path(__file__).resolve().parents[1]/'blender'/'textures'
+OUT.mkdir(parents=True,exist_ok=True)
 random.seed(23)
-OUT = Path(__file__).resolve().parents[1] / 'blender' / 'textures'
-OUT.mkdir(parents=True, exist_ok=True)
-def save(im,name): im.save(OUT / (name+'.png'))
+INK=(65,58,41); CREAM=(235,222,175)
 def font(size,serif=False):
-    return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf' if serif else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',size)
-# Fine, long wood grain; geometry supplies the seams and rounded edges.
-im=Image.new('RGB',(2048,1024)); p=im.load()
-for y in range(1024):
-    band=3*math.sin(y*.058)+2*math.sin(y*.23)+math.sin(y*.59)
-    for x in range(2048):
-        g=band+1.5*math.sin(y*.42+math.sin(x*.003)*2)+random.uniform(-2,2)
-        p[x,y]=(int(144+g),int(78+g*.72),int(33+g*.4))
-d=ImageDraw.Draw(im)
-for i in range(220):
-    y=random.randrange(1024); x=random.randrange(2048); length=random.randrange(40,1600)
-    points=[(x+j,y+2*math.sin(j*.004+i)) for j in range(0,length,12)]
-    if len(points)>1:d.line(points, fill=random.choice([(133,70,30),(151,84,35),(158,87,38)]),width=1)
-save(im,'wood')
-# Navy linen book cover, with hand-drawn overlapping seigaiha waves.
-im=Image.new('RGB',(1024,1536),(45,53,76)); d=ImageDraw.Draw(im)
-for i in range(42000):
-    x=random.randrange(1024);y=random.randrange(1536);c=random.randrange(43,66)
-    d.point((x,y),fill=(c,c+5,c+18))
-for row in range(3):
-    for col in range(-1,5):
-        cx=col*310+(155 if row%2 else 0);cy=1536-row*130+90
-        for r in [63,96,129,162,195]:d.arc((cx-r,cy-r,cx+r,cy+r),180,360,fill=(228,208,167),width=13)
-d.rounded_rectangle((665,105,914,790),radius=6,fill=(231,196,147),outline=(171,115,63),width=5)
-d.rectangle((679,119,900,775),outline=(121,75,40),width=2)
-label=Image.new('RGBA',(600,190)); ld=ImageDraw.Draw(label);ld.text((15,-6),'Menu',font=font(133,True),fill=(46,39,35))
-label=label.rotate(-90,expand=True)
-im.paste(label,(700,180),label)
-d.text((699,660),'お品書き',font=font(25),fill=(86,61,42))
-save(im,'menu')
-# Painted cherry blossom wrapping the front of each ceramic vessel.
-im=Image.new('RGBA',(2048,1024),(0,0,0,0)); d=ImageDraw.Draw(im)
-# lathe UV front is at u=.75 (negative Y)
-cx,cy=1536,560
-for x,y,ang in [(cx+120,cy+40,-30),(cx-130,cy+80,30),(cx+75,cy-125,-45),(cx-140,cy-60,20)]:
-    leaf=Image.new('RGBA',(180,80));ld=ImageDraw.Draw(leaf);ld.ellipse((0,5,180,75),fill=(128,141,71,220));ld.line((8,40,170,40),fill=(173,169,90),width=3)
-    leaf=leaf.rotate(ang,expand=True); im.alpha_composite(leaf,(x-90,y-40))
-d=ImageDraw.Draw(im)
-for a in range(5):
-    ang=a*2*math.pi/5-math.pi/2;x=cx+math.cos(ang)*75;y=cy+math.sin(ang)*75
-    d.ellipse((x-48,y-58,x+48,y+58),fill=(247,218,187),outline=(233,189,155),width=2)
-d.ellipse((cx-29,cy-29,cx+29,cy+29),fill=(237,159,34))
-for a in range(13):
-    t=a*2*math.pi/13; x=cx+35*math.cos(t);y=cy+35*math.sin(t);d.line((cx,cy,x,y),fill=(217,142,35),width=2);d.ellipse((x-3,y-3,x+3,y+3),fill=(255,197,54))
-im=im.transform(im.size,Image.Transform.AFFINE,(1,0,0,0,1/2.3,cy*(1-1/2.3)),resample=Image.Resampling.BICUBIC)
-bg=Image.new('RGBA',im.size,(111,122,73,255));bd=ImageDraw.Draw(bg)
-for i in range(19500):
-    x=random.randrange(2048);y=random.randrange(1024);r=random.choice([1,1,1,2]);v=random.randint(-13,8)
-    bd.ellipse((x-r,y-r,x+r,y+r),fill=(111+v,122+v,73+v,255))
-bg.alpha_composite(im);save(bg.convert('RGB'),'blossom')
-# Fish muscle: irregular chevron fat lines, soft flesh variation and fine fibers.
-for name,base,stripe in [('salmon',(238,103,37),(255,203,143)),('tuna',(190,35,38),(234,92,86))]:
-    im=Image.new('RGB',(1024,512));px=im.load()
-    for y in range(512):
-        for x in range(1024):
-            variation=4*math.sin(x*.026+y*.009)+2*math.sin(x*.09-y*.07)+random.uniform(-2,2)
-            edge=1-.10*(abs(y-256)/256)**3
-            px[x,y]=tuple(int(max(0,min(255,(c+variation)*edge))) for c in base)
-    layer=Image.new('RGBA',im.size);d=ImageDraw.Draw(layer)
-    for i in range(-5,17):
-        pts=[]
-        for y in range(0,513,3):
-            # Muscle fibers follow a gently curved V across the back of the fillet.
-            x=i*86+abs(y-242)*.58+9*math.sin(y*.012+i*.4)
-            pts.append((x,y))
-        d.line(pts,fill=(*stripe,215 if name=='salmon' else 145),width=7 if name=='salmon' else 3)
-        for shift in [19,37,57]:
-            d.line([(x+shift,y) for x,y in pts],fill=(*stripe,26),width=1)
-    im=Image.alpha_composite(im.convert('RGBA'),layer.filter(ImageFilter.GaussianBlur(.55))).convert('RGB')
+    return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/'+('DejaVuSerif.ttf' if serif else 'DejaVuSans.ttf'),size)
+def save(im,name): im.convert('RGB').save(OUT/(name+'.png'))
+def ground(size,base,variation=6):
+    im=Image.new('RGB',size);p=im.load()
+    for y in range(size[1]):
+        for x in range(size[0]):
+            v=random.uniform(-variation,variation)+2*math.sin(x*.08+y*.06)
+            p[x,y]=tuple(max(0,min(255,int(c+v))) for c in base)
+    return im
+
+def flower(d,cx,cy,r,aspect=1):
+    for i in range(5):
+        a=i*math.tau/5-.6;x=cx+math.cos(a)*r*.63*aspect;y=cy+math.sin(a)*r*.63
+        d.ellipse((x-r*.44*aspect,y-r*.47,x+r*.44*aspect,y+r*.47),fill=(235,216,172),outline=(172,147,105),width=1)
+        d.line((cx,cy,x,y),fill=(203,173,119),width=1)
+    d.ellipse((cx-r*.17*aspect,cy-r*.17,cx+r*.17*aspect,cy+r*.17),fill=(183,122,48))
+    for i in range(7):
+        a=i*math.tau/7;x=cx+math.cos(a)*r*.24*aspect;y=cy+math.sin(a)*r*.24
+        d.line((cx,cy,x,y),fill=(163,103,47),width=1)
+        d.ellipse((x-1,y-1,x+1,y+1),fill=(249,213,118))
+
+def waves(d,w,y,color,spacing=64):
+    for row in range(2):
+        for x in range(-spacing,w+spacing,spacing):
+            cx=x+(spacing//2 if row%2 else 0);cy=y-row*spacing*.35
+            for r in [spacing*.22,spacing*.34,spacing*.46,spacing*.58]:
+                d.arc((cx-r,cy-r,cx+r,cy+r),180,355,fill=color,width=2)
+
+# Wrapping ceramic: branches and blossoms across the entire circumference,
+# with separate ink and cream borders and seigaiha bands.
+im=ground((512,512),(129,151,103),5);d=ImageDraw.Draw(im)
+for y in [20,43,439,468,489]:
+    d.line((0,y,512,y),fill=(52,76,57),width=3)
+    d.line((0,y+4,512,y+4),fill=(204,205,146),width=2)
+waves(d,512,478,(203,200,145),48)
+for x in range(-10,560,118):
+    points=[(x-35,430),(x+3,352),(x-10,290),(x+28,220),(x+9,143),(x+42,64)]
+    d.line(points,fill=(61,83,57),width=5)
+    d.line([(a+2,b) for a,b in points],fill=(172,176,116),width=1)
+    for i,y in enumerate([117,183,271,355]):
+        xx=x+(17 if i%2 else -7)
+        d.line((xx,y,xx+31,y-17),fill=(65,90,61),width=2)
+        d.ellipse((xx+17,y-37,xx+47,y-18),fill=(77,107,66),outline=(61,82,54),width=1)
+        d.line((xx+21,y-25,xx+44,y-29),fill=(172,180,113),width=1)
+        flower(d,xx-7,y-10,random.choice([34,40,43]),aspect=.28)
+for i in range(90):
+    x=random.randrange(512);y=random.randrange(65,430)
+    if i%3==0:d.ellipse((x,y,x+3,y+6),fill=(220,196,144))
+save(im,'blossom')
+
+# Planar lid painting uses its own UVs, so flowers do not stretch over the crown.
+im=ground((256,256),(129,151,103),4);d=ImageDraw.Draw(im)
+for r in [83,88,113,118]:d.ellipse((128-r,128-r,128+r,128+r),outline=(65,85,57),width=2)
+for i in range(10):
+    a=i*math.tau/10;x=128+math.cos(a)*99;y=128+math.sin(a)*99
+    flower(d,x,y,10)
+for i in range(6):
+    a=i*math.tau/6;x=128+math.cos(a)*61;y=128+math.sin(a)*61
+    flower(d,x,y,17)
+    d.line((x,y,128+math.cos(a+.24)*37,128+math.sin(a+.24)*37),fill=(66,90,59),width=2)
+save(im,'tea_lid')
+
+# Plank paint: broad, uneven grain rather than photographic fine noise.
+for name,base in [('wood',(171,120,67)),('darkwood',(70,66,48)),('bamboo',(179,142,84))]:
+    im=ground((512,256),base,4);d=ImageDraw.Draw(im)
+    for i in range(60):
+        y=random.randrange(256);x=random.randrange(-100,250);length=random.randrange(70,650)
+        pts=[(x+t,y+2*math.sin(t*.02+i)+math.sin(t*.07)) for t in range(0,length,5)]
+        color=tuple(max(0,c-random.choice([10,17,22])) for c in base)
+        d.line(pts,fill=color,width=random.choice([1,1,2]))
+        if i%4==0:d.line([(a,b+3) for a,b in pts],fill=tuple(min(255,c+17) for c in base),width=1)
+    for x,y in [(110,75),(384,198)]:
+        for r in range(3,18,4):d.ellipse((x-r*2,y-r*.4,x+r*2,y+r*.4),outline=tuple(max(0,c-19) for c in base),width=1)
     save(im,name)
-# Fibrous nori: dark olive flakes, with restrained oily highlights.
-im=Image.new('RGB',(512,512),(24,33,17));d=ImageDraw.Draw(im)
-for i in range(15500):
-    x=random.randrange(512);y=random.randrange(512);v=random.randrange(15,56)
-    d.line((x,y,x+random.randrange(1,12),y+random.randrange(-4,5)),fill=(int(v*.76),v,int(v*.51)),width=1)
-save(im.filter(ImageFilter.GaussianBlur(.3)),'nori')
-# Omelet pores and slight cooked edges, kept subtle at the serving scale.
-im=Image.new('RGB',(512,512),(245,184,48));d=ImageDraw.Draw(im)
-for i in range(2300):
-    x=random.randrange(512);y=random.randrange(512);r=random.choice([1,1,2,3]);c=random.choice([(220,155,38),(255,202,69),(239,173,39)])
-    d.ellipse((x-r,y-r,x+r,y+r),fill=c)
-save(im.filter(ImageFilter.GaussianBlur(.5)),'egg')
-# Receipt: a curved mesh will use this paper texture.
-im=Image.new('RGB',(512,1024),(247,226,194));d=ImageDraw.Draw(im)
-d.text((62,280),'Resume',font=font(64,True),fill=(49,41,31))
-d.text((106,385),'FRESH IDEAS, DAILY',font=font(15),fill=(112,92,69))
-for i in range(7):
-    y=470+i*55;d.ellipse((65,y,75,y+10),fill=(58,49,36));d.line((94,y+5,366,y+5),fill=(154,129,97),width=2);d.text((390,y-5),'••',font=font(19),fill=(58,49,36))
-d.line((65,865,445,865),fill=(150,116,83),width=2);d.text((143,909),'THANK YOU',font=font(19),fill=(107,83,55))
-save(im,'receipt')
-# Four painted little plate signs.
+
+# Painted fish: irregular fat ribbons, layered muscle fibers, warm edge shading.
+for name,base,stripe in [('salmon',(219,111,67),(245,209,151)),('tuna',(167,65,67),(213,133,121))]:
+    im=ground((512,256),base,7);p=im.load()
+    for y in range(256):
+        for x in range(512):
+            shade=1-.22*(abs(y-128)/128)**4-.07*math.sin(x*.012)**2
+            p[x,y]=tuple(int(c*shade) for c in p[x,y])
+    d=ImageDraw.Draw(im)
+    for i in range(-6,13):
+        pts=[(i*50+abs(y-125)*.64+4*math.sin(y*.039+i),y) for y in range(0,258,2)]
+        d.line([(x-3,y) for x,y in pts],fill=tuple(int(c*.72) for c in base),width=9 if name=='salmon' else 5)
+        d.line(pts,fill=stripe,width=5 if name=='salmon' else 2)
+        for shift in [12,23,34]:
+            d.line([(x+shift,y) for x,y in pts],fill=tuple(int(c*.87+s*.13) for c,s in zip(base,stripe)),width=1)
+    d.line((0,3,512,3),fill=tuple(int(c*.71) for c in base),width=3)
+    d.line((0,250,512,250),fill=tuple(int(c*.75) for c in base),width=3)
+    for i in range(130):
+        x=random.randrange(512);y=random.randrange(256)
+        d.line((x,y,x+random.randrange(3,15),y+1),fill=tuple(min(255,c+12) for c in base),width=1)
+    save(im,name)
+
+im=ground((256,256),(48,62,39),7);d=ImageDraw.Draw(im)
+for i in range(2600):
+    x=random.randrange(256);y=random.randrange(256);v=random.randrange(30,90)
+    d.line((x,y,x+random.randrange(2,9),y+random.randrange(-3,4)),fill=(int(v*.76),v,int(v*.57)),width=random.choice([1,2]))
+for i in range(20):
+    y=random.randrange(256);d.line([(x,y+4*math.sin(x*.05+i)) for x in range(256)],fill=(34,43,28),width=1)
+save(im,'nori')
+
+# Rice is illustrated into the base texture, with a few silhouette grains in mesh.
+im=ground((256,256),(215,208,170),4);d=ImageDraw.Draw(im)
+for row in range(16):
+    for col in range(15):
+        x=col*19+(9 if row%2 else 0)+random.randrange(-3,4);y=row*17+random.randrange(-3,4)
+        d.ellipse((x-8,y-4,x+8,y+4),fill=(235,228,191),outline=(167,160,126),width=1)
+        d.line((x-5,y-2,x+4,y-2),fill=(252,244,206),width=1)
+save(im,'rice')
+im=ground((256,256),(228,183,65),5);d=ImageDraw.Draw(im)
+for y in range(0,256,12):
+    d.line([(x,y+2*math.sin(x*.05+y)) for x in range(256)],fill=(191,138,44),width=2)
+    d.line([(x,y+3+2*math.sin(x*.05+y)) for x in range(256)],fill=(245,209,100),width=2)
+for i in range(650):
+    x=random.randrange(256);y=random.randrange(256);r=random.choice([1,1,2]);d.ellipse((x,y,x+r,y+r),fill=random.choice([(172,127,40),(248,215,115),(216,161,46)]))
+save(im,'egg')
+im=ground((128,128),(218,106,31),7);d=ImageDraw.Draw(im)
+d.ellipse((36,23,91,95),fill=(232,126,38));d.ellipse((59,52,77,76),fill=(172,63,25));d.arc((24,13,101,110),190,280,fill=(250,180,74),width=7);save(im,'roe')
+
+# Matte and metal finishes have small painted nicks and firm edge highlights.
+for name,base in [('ceramic',(224,219,186)),('brass',(185,151,76)),('steel',(146,151,137)),('pos_body',(219,220,193)),('belt',(158,157,132)),('plaster',(150,145,117))]:
+    im=ground((256,256),base,4);d=ImageDraw.Draw(im)
+    for i in range(70):
+        x=random.randrange(256);y=random.randrange(256);v=random.choice([-20,12])
+        d.line((x,y,x+random.randrange(1,12),y),fill=tuple(max(0,min(255,c+v)) for c in base),width=1)
+    if name in ['brass','steel','pos_body']:
+        d.line((4,0,4,256),fill=tuple(min(255,c+25) for c in base),width=2)
+        d.line((252,0,252,256),fill=tuple(max(0,c-25) for c in base),width=2)
+    save(im,name)
+
+im=ground((256,256),(80,99,43),4);d=ImageDraw.Draw(im)
+for r in [111,116,121]:d.ellipse((128-r,128-r,128+r,128+r),outline=(131,143,65),width=1)
+d.arc((25,31,228,223),195,256,fill=(186,180,102),width=3);save(im,'tea')
+
+# Small embroidered menu, original labels and blocky POS UI.
+im=ground((512,512),(58,79,83),6);d=ImageDraw.Draw(im)
+d.rectangle((10,10,502,502),outline=(185,172,125),width=3);d.rectangle((17,17,495,495),outline=(106,126,115),width=1)
+waves(d,512,505,(202,196,153),80)
+d.rounded_rectangle((165,60,390,302),radius=3,fill=(225,209,164),outline=INK,width=3)
+d.rectangle((175,70,380,292),outline=(153,128,79),width=1)
+d.text((195,105),'MENU',font=font(33,True),fill=INK);d.line((193,156,362,156),fill=INK,width=2)
+d.text((197,177),'THE SUSHI',font=font(16),fill=INK);d.text((205,202),'COUNTER',font=font(17),fill=INK);d.text((217,248),'01 / 2026',font=font(12),fill=INK)
+save(im,'menu')
+im=ground((512,320),(87,110,85),2);d=ImageDraw.Draw(im)
+d.rectangle((12,12,500,308),outline=(178,193,146),width=3)
+d.text((30,25),'SUSHI COUNTER',font=font(25),fill=(218,225,176));d.line((30,67,480,67),fill=(170,186,141),width=2)
+for i,(name,price) in enumerate([('SALMON x 1','8.00'),('TAMAGO x 1','6.00'),('GREEN TEA','3.00')]):
+    y=87+i*39;d.text((30,y),name,font=font(19),fill=(192,210,166));d.text((393,y),price,font=font(19),fill=(207,222,178))
+d.line((30,211,480,211),fill=(170,186,141),width=2);d.text((30,230),'TOTAL',font=font(23),fill=(219,225,176));d.text((341,225),'17.00',font=font(32),fill=(224,233,187));d.text((33,282),'READY  >  TAP TO PAY',font=font(12),fill=(175,194,149));save(im,'pos_screen')
+im=ground((256,256),(229,218,175),4);d=ImageDraw.Draw(im)
+d.rectangle((8,8,248,248),outline=(101,88,60),width=3);d.rectangle((15,15,241,241),outline=(151,134,89),width=1)
+d.rectangle((19,20,237,73),fill=(151,65,47));d.text((50,29),'HOUSE',font=font(29,True),fill=CREAM)
+d.text((43,91),'SHOYU',font=font(34,True),fill=INK);d.text((32,142),'NATURALLY',font=font(20),fill=INK);d.text((42,170),'BREWED',font=font(22),fill=INK)
+for x in range(47,211,5):d.line((x,211,x,236),fill=INK,width=random.choice([1,2,3]))
+save(im,'bottle_label')
 for kind in ['roe','egg','salmon','tuna']:
-    im=Image.new('RGB',(256,256),(244,227,197)); d=ImageDraw.Draw(im)
+    im=ground((128,128),(229,218,179),3);d=ImageDraw.Draw(im);d.rectangle((3,3,124,124),outline=(79,88,65),width=2)
     if kind=='roe':
-        for x,y in [(86,77),(151,129),(80,153)]:d.rectangle((x-25,y-25,x+25,y+25),fill=(187,43,35))
+        for x,y in [(41,40),(79,66),(41,91)]:d.rectangle((x-12,y-12,x+12,y+12),fill=(163,66,42),outline=INK,width=1)
     elif kind=='egg':
-        d.rounded_rectangle((14,14,242,242),radius=5,fill=(80,121,91));cx=128;cy=130
-        for a in range(5):
-            t=a*math.pi*2/5; x=cx+math.cos(t)*43;y=cy+math.sin(t)*43;d.ellipse((x-27,y-28,x+27,y+28),fill=(248,222,179))
-        d.ellipse((108,110,148,150),fill=(233,167,48))
-    elif kind=='salmon':
-        for cx,cy in [(70,155),(185,155),(128,235)]:
-            for r in [34,59,84,109]:d.arc((cx-r,cy-r,cx+r,cy+r),180,360,fill=(61,106,149),width=10)
+        d.rectangle((8,8,120,120),fill=(89,119,85));flower(d,64,62,38)
+    elif kind=='salmon':waves(d,128,100,(64,99,113),52);waves(d,128,57,(64,99,113),52)
     else:
-        d.ellipse((52,90,182,165),fill=(201,51,41));d.polygon([(167,126),(220,86),(217,167)],fill=(201,51,41));d.polygon([(100,93),(122,70),(145,99)],fill=(201,51,41));d.ellipse((65,113,73,121),fill=(250,225,186))
+        d.ellipse((25,47,89,81),fill=(171,67,51),outline=INK,width=1);d.polygon([(82,64),(108,44),(108,84)],fill=(171,67,51));d.ellipse((31,57,36,62),fill=CREAM)
     save(im,'sign_'+kind)
-# Curtain waves.
-im=Image.new('RGB',(1024,1024),(31,44,75)); d=ImageDraw.Draw(im)
-for row in range(2):
-    for col in range(-1,5):
-        cx=col*280+(140 if row%2 else 0);cy=1050-row*130
-        for r in [32,59,86,113,140,167]:d.arc((cx-r,cy-r,cx+r,cy+r),180,360,fill=(197,194,176),width=8)
-save(im,'curtain')
-# Tileable tangent normals and scalar roughness: texture values represent material,
-# rather than painting lighting or highlights into the base color.
-rng=random.Random(918)
-def noise(size,blur):
-    data=bytes(rng.randrange(256) for _ in range(size*size))
-    return Image.frombytes('L',(size,size),data).filter(ImageFilter.GaussianBlur(blur))
-for name,rough,variation,strength in [('glaze',.27,.13,.22),('wood',.29,.12,.18),('cloth',.82,.10,.35),('fish',.26,.065,.075),('rice',.40,.08,.10),('nori',.47,.20,.38),('metal',.28,.12,.11),('plastic',.035,.016,.012)]:
-    size=512
-    height=noise(size,1.0 if name!='wood' else 2.0)
-    if name=='cloth':
-        hp=height.load()
-        for y in range(size):
-            for x in range(size):hp[x,y]=int(128+30*math.sin(x*math.pi/3)*math.sin(y*math.pi/3))
-    if name=='metal':
-        height=height.resize((32,512)).resize((512,512),Image.Resampling.BICUBIC)
-    if name=='wood':
-        height=Image.open(OUT/'wood.png').convert('L').resize((512,512))
-    if name=='nori':height=Image.open(OUT/'nori.png').convert('L')
-    hp=height.load();normal=Image.new('RGB',(size,size));np=normal.load()
+im=ground((256,256),(51,75,83),6);d=ImageDraw.Draw(im);waves(d,256,261,(185,184,145),64);save(im,'curtain')
+
+# Small tangent normals; broad, quiet roughness avoids soft CGI reflections.
+for name,rough,strength in [('glaze',.62,.12),('wood',.83,.20),('cloth',.94,.24),('fish',.66,.09),('rice',.86,.12),('nori',.84,.20),('metal',.52,.08),('plastic',.16,.015)]:
+    size=128;normal=Image.new('RGB',(size,size));roughness=Image.new('L',(size,size));np=normal.load();rp=roughness.load()
     for y in range(size):
         for x in range(size):
-            dx=(hp[(x+1)%size,y]-hp[(x-1)%size,y])*strength
-            dy=(hp[x,(y+1)%size]-hp[x,(y-1)%size])*strength
-            n=math.sqrt(dx*dx+dy*dy+64*64)
-            np[x,y]=(int(127.5-dx/n*127),int(127.5-dy/n*127),int(127.5+64/n*127))
-    save(normal,name+'_normal')
-    coarse=noise(size,3);cp=coarse.load();rm=Image.new('L',(size,size));rp=rm.load()
-    for y in range(size):
-        for x in range(size):rp[x,y]=int(255*max(.01,min(1,rough+(cp[x,y]-128)/40*variation)))
-    save(rm,name+'_roughness')
-print('Original color, tangent normal and roughness textures written to',OUT)
+            v=random.uniform(-1,1);np[x,y]=(int(128+v*strength*22),int(128+math.sin(x*.7+y*.4)*strength*20),254)
+            rp[x,y]=int(255*max(.01,min(1,rough+v*.025)))
+    save(normal,name+'_normal');roughness.save(OUT/(name+'_roughness.png'))
+print('Painted game textures generated: 128–512px, seeded brushwork and wraparound ornament.')

@@ -13,7 +13,7 @@ npm ci
 npm run dev -- --port 5173
 ```
 
-Open the address printed by Vite. The conveyor moves continuously. Pause it with the bottom control or Space while the scene canvas has focus. **Look around** enables drag and scroll; click **Reset view**, the logo, or press Escape to return to your seat. Reduced-motion preferences start the conveyor paused. The stacked plates sit on a service ledge behind the conveyor. Click their visible 3D surfaces or the **Plate collection** button to toggle selection; the canvas emits `plate-stack-select` with `{ selected }` for later portfolio navigation. The bell, menu, tea set and printer are independent objects ready for later interaction work; their portfolio actions have deliberately not been assigned yet.
+Open the address printed by Vite. The conveyor moves continuously. Pause it with the bottom control or Space while the scene canvas has focus. **Look around** enables drag and scroll; click **Reset view**, the logo, or press Escape to return to your seat. Reduced-motion preferences start the conveyor paused. The stacked plates sit on a service ledge behind the conveyor. Click their visible 3D surfaces or the **Plate collection** button to toggle selection; the canvas emits `plate-stack-select` with `{ selected }` for later portfolio navigation. The bell, menu, tea set and POS terminal are independent objects ready for later interaction work; their portfolio actions have deliberately not been assigned yet.
 
 ```sh
 npm run build
@@ -28,7 +28,7 @@ npm run build
 - `blender/optimize_export.py` — merges the web copy by material **within** each independent assembly; the Blender source stays separated.
 - `scripts/textures.py` / `blender/textures/` — deterministic original wood, blossom, seigaiha, fish, signage and paper artwork.
 - `public/models/objects/` — 12 individual GLB prop files, exported at local origin.
-- `public/models/sushi-bar.glb` — portable web scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL` and `RESUME` are separate scene roots.
+- `public/models/sushi-bar.glb` — portable web scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL` and `POS` are separate scene roots.
 
 To regenerate with Blender 4.3+ and Python 3 / Pillow:
 
@@ -43,9 +43,13 @@ The static `.blend` is saved before web optimization. Editing the native file an
 
 ## Rendering
 
-The reference composition is interpreted as actual 3D geometry: hollow celadon vessels, a wrapped bamboo handle, separately modeled rice grains and roe, curved fish fillets, clear glass cloches, a stitched cloth menu, a brass service bell and a curling printed résumé. Darker amber lighting, broad photographic reflection sources, a depth-aware background blur and shadows keep the counter central. Thin-walled molded PET covers use Fresnel-weighted transparency, warm studio reflections, a subtle surface texture and a separate rolled foot. Their native Blender material also retains physical transmission for rendering. Original normal and roughness maps distinguish wet fish, fibrous nori, polished plastic, mineral-speckled glaze, brushed metal, cloth and varnished wood; the native Blender source packs these textures too. Materials, proportions and decorations are an original approximation, not a pixel-identical reproduction of the reference.
+The supplied reference informs the **painted game-asset style**, rather than replacing the sushi-counter composition. All scene and prop GLBs are regenerated from the editable Blender source. The models use restrained polygon counts; seeded, original 128–512px textures provide fish muscle ribbons, rice grains, layered omelet, nori fibers, wood grain, worn metal, and wraparound flowering branches with patterned borders on the celadon tea set. A few modeled rice grains and roe preserve silhouettes without modeling every painted detail.
 
-On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The HTML contains roughly 26 MB of uncompressed model and application data.
+The counter extends toward the bottom of the view. The menu is a smaller stitched book. The right-hand prop is now an ivory wedge-shaped POS terminal with a tilted illustrated LCD, tactile keypad, side card slot and ventilation; there is no receipt or paper strip. Its individual asset is `public/models/objects/pos-terminal.glb`.
+
+The web rig uses a clear directional key and quiet ambient fill, neutral tone mapping, and restrained reflection cards. Selective dark occlusion contours and authored ink trim support the illustrative finish. Glass vessels use a thicker green-edged finish; PET sushi covers have separate thin-shell transparency, rolled lips and narrow painted glints. Food stays sharp through the covers. Depth-of-field and broad cinematic softbox reflections are removed. The native `.blend` packs the same authored textures; web-specific ink and transparency tuning live in `src/main.js` and `src/materials.js`.
+
+On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 9 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 115,000 vertices, down from approximately 418,000.
 
 ## Validation
 
@@ -54,4 +58,4 @@ npm run build
 npm test
 ```
 
-The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.
+The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It also checks the compact menu, extended counter, receipt-free POS, distinct glass/PET materials, vertex budget and painted texture sizes. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.

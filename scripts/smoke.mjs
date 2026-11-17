@@ -30,8 +30,37 @@ try {
   });
   assert.equal(assets.plates,6,'Four main sushi assemblies plus two off-screen loop assemblies');
   assert.ok(assets.meshes>100 && assets.vertices>10000,'Actual 3D geometry loaded');
-  for(const name of ['TEAPOT','TEACUP','MENU','BELL','RESUME'])
+  for(const name of ['TEAPOT','TEACUP','MENU','BELL','POS'])
     assert.ok(assets.names.some(n=>n.startsWith(name)),name+' is a separate named assembly');
+  const artDirection=await page.evaluate(()=>{
+    const model=window.__sushi.model;
+    const root=prefix=>model.children.find(o=>o.name.startsWith(prefix));
+    const box=object=>{
+      // Reuse the already-loaded Three.js math types without another network import.
+      const points=[];
+      object.updateWorldMatrix(true,true);
+      object.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();const b=o.geometry.boundingBox,V=window.__sushi.camera.position.constructor;
+        for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z])points.push(new V(x,y,z).applyMatrix4(o.matrixWorld));
+      }});
+      return {width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),front:Math.max(...points.map(p=>p.z))};
+    };
+    const textures=[],glass=[];let receipt=false,lcd=false;
+    model.traverse(o=>{if(!o.isMesh)return;
+      if(/receipt|resume|paper slot/i.test(o.name))receipt=true;
+      if(o.material.name.includes('olive LCD'))lcd=true;
+      if(o.material.map)textures.push({name:o.material.name,width:o.material.map.image.width,height:o.material.map.image.height});
+      if(/Bottle glass|Clear molded/.test(o.material.name))glass.push(o.material.name);
+    });
+    return {menu:box(root('MENU')),table:box(root('RESTAURANT')),receipt,lcd,textures,glass:[...new Set(glass)]};
+  });
+  assert.ok(assets.vertices<250000,'Simple game-asset geometry stays below 250k scene vertices');
+  assert.ok(artDirection.menu.width<3.8,'Menu is smaller than the original oversized book');
+  assert.ok(artDirection.table.front>13,'Counter extends toward the visitor');
+  assert.equal(artDirection.receipt,false,'POS has no paper receipt assembly');
+  assert.equal(artDirection.lcd,true,'POS has an illustrated LCD');
+  assert.equal(artDirection.glass.length,2,'Glass vessels and PET covers use distinct materials');
+  assert.ok(artDirection.textures.every(t=>t.width<=512 && t.height<=512),'Painted textures retain deliberate low texel density');
+  assert.ok(artDirection.textures.some(t=>t.name.includes('sakura')),'Wraparound painted tea ceramics loaded');
   // Find a visible plate surface by casting through the complete scene, so a
   // hidden or occluded collection cannot pass this click-through check.
   const stackTarget = await page.evaluate(()=>{
@@ -88,6 +117,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}

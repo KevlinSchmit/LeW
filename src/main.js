@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { makeReflectionStudio, refineSurface, makePlastic } from './materials.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
@@ -25,16 +24,16 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 renderer.transmissionResolutionScale = 1;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = .96;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#2c1c12');
-scene.fog = new THREE.FogExp2('#53351e', .017);
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 90);
+scene.background = new THREE.Color('#9b9b7e');
+scene.fog = new THREE.FogExp2('#91947b', .009);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 90);
 // Blender is Z-up; glTF gives us Y-up. Visitor sits on the positive Z side.
-const home = new THREE.Vector3(0, 8.0, 17.2);
-const target = new THREE.Vector3(0, 2.25, -1.0);
+const home = new THREE.Vector3(0, 10.8, 19.8);
+const target = new THREE.Vector3(0, 1.8, -.3);
 camera.position.copy(home);
 camera.lookAt(target);
 const controls = new OrbitControls(camera, canvas);
@@ -51,12 +50,9 @@ controls.maxAzimuthAngle = .22;
 controls.rotateSpeed = .35;
 controls.zoomSpeed = .45;
 scene.environment = makeReflectionStudio(renderer);
-scene.environmentIntensity = .48;
-scene.add(new THREE.HemisphereLight(0xffe1b2, 0x392415, .43));
-RectAreaLightUniformsLib.init();
-const counterGlow=new THREE.RectAreaLight(0xffd1a1,4.0,8,3);
-counterGlow.position.set(-3,7,4);counterGlow.lookAt(0,0,-1);scene.add(counterGlow);
-function areaLight(color, power, position, size, aim, shadow = false) {
+scene.environmentIntensity = .35;
+scene.add(new THREE.HemisphereLight(0xfff5e5, 0x888b83, 1.8));
+function directionalLight(color, power, position, aim, shadow = false) {
   const l = new THREE.DirectionalLight(color, power);
   l.position.set(...position);
   l.target.position.set(...aim);
@@ -66,21 +62,15 @@ function areaLight(color, power, position, size, aim, shadow = false) {
     Object.assign(l.shadow.camera, { left: -14, right: 14, top: 13, bottom: -10, near: .1, far: 40 });
     l.shadow.bias = -.0003;
     l.shadow.normalBias = .025;
-    l.shadow.radius = 4;
+    l.shadow.radius = 1;
   }
   scene.add(l, l.target);
   return l;
 }
-areaLight(0xffd4a3, 1.75, [-5, 10, 7], 8, [0, 0, 0], true);
-areaLight(0xffaa65, .85, [8, 8, -3], 7, [0, 0, 0]);
-areaLight(0xffe5c4, .65, [0, 8, 12], 8, [0, 1, 0]);
-areaLight(0xaac2df, .12, [-8, 6, -10], 5, [0, 2, 0]);
-// Lantern-sized sources produce broad highlights instead of pin-like sparkles.
-for (const [x,y,z] of [[-8,6.5,-4],[0,7,-7],[7,6.5,-7]]) {
-  const lamp=new THREE.RectAreaLight(0xffb85e,5,1.6,1.3);
-  lamp.position.set(x,y,z);lamp.lookAt(x,0,z);scene.add(lamp);
-}
-// Depth-aware background softness: keep the counter crisp and let the empty room recede.
+// One clear key with a quiet cool fill gives game-engine shaped shadows.
+directionalLight(0xfff0d9, 2.1, [-7, 12, 6], [0, 0, 0], true);
+directionalLight(0xc4d1c1, .5, [8, 7, 0], [0, 1, 0]);
+// No depth-of-field: every painted asset should remain readable.
 const renderSize = new THREE.Vector2();
 renderer.getDrawingBufferSize(renderSize);
 const sceneTarget = new THREE.WebGLRenderTarget(renderSize.x, renderSize.y, { type: THREE.HalfFloatType });
@@ -91,7 +81,6 @@ const finishMaterial = new THREE.ShaderMaterial({
   uniforms: {
     image: { value: sceneTarget.texture }, depth: { value: sceneTarget.depthTexture },
     pixel: { value: new THREE.Vector2(1/renderSize.x,1/renderSize.y) },
-    focusDistance: { value: camera.position.distanceTo(target) },
     cameraNear: { value: camera.near }, cameraFar: { value: camera.far },
   },
   vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
@@ -101,31 +90,22 @@ const finishMaterial = new THREE.ShaderMaterial({
     uniform sampler2D image;
     uniform sampler2D depth;
     uniform vec2 pixel;
-    uniform float focusDistance;
     uniform float cameraNear;
     uniform float cameraFar;
     varying vec2 vUv;
     void main(){
       float d=texture2D(depth,vUv).x;
       float distance=-perspectiveDepthToViewZ(d,cameraNear,cameraFar);
-      float blur=smoothstep(focusDistance+4.,focusDistance+11.,distance)*6.;
       vec3 color=texture2D(image,vUv).rgb;
-      if(blur>.1){
-        vec3 sum=color*2.;float weight=2.;
-        for(int i=0;i<18;i++){
-          float t=float(i)+.5;
-          float angle=t*2.399963;
-          float r=sqrt(t/18.);
-          vec2 offset=vec2(cos(angle),sin(angle))*r*blur*pixel;
-          float sampleDistance=-perspectiveDepthToViewZ(texture2D(depth,vUv+offset).x,cameraNear,cameraFar);
-          float w=smoothstep(focusDistance+2.,focusDistance+5.,sampleDistance);
-          sum+=texture2D(image,vUv+offset).rgb*w;weight+=w;
-        }
-        color=sum/weight;
+      // Broken ink contours at occlusion boundaries; not every surface is outlined.
+      float edge=0.;
+      for(int i=0;i<4;i++){
+        vec2 direction=i==0?vec2(1.,0.):i==1?vec2(-1.,0.):i==2?vec2(0.,1.):vec2(0.,-1.);
+        float neighbor=-perspectiveDepthToViewZ(texture2D(depth,vUv+direction*pixel*.85).x,cameraNear,cameraFar);
+        edge=max(edge,smoothstep(.06,.24,neighbor-distance));
       }
-      color*=mix(1.,.86,smoothstep(focusDistance+5.,focusDistance+13.,distance));
-      vec2 centered=(vUv-.5)*vec2(1.,.8);
-      color*=1.-.42*dot(centered,centered);
+      float foreground=1.-smoothstep(27.,35.,distance);
+      color=mix(color,color*.30,edge*foreground*.62);
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -134,7 +114,6 @@ const finishMaterial = new THREE.ShaderMaterial({
 });
 finalScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),finishMaterial));
 function renderScene() {
-  finishMaterial.uniforms.focusDistance.value = camera.position.distanceTo(controls.target);
   updateStackHotspot();
   renderer.setRenderTarget(sceneTarget);
   renderer.render(scene,camera);
@@ -156,13 +135,13 @@ const interactableNames = new Map([
   ['TEAPOT', 'Sakura tea pot'], ['TEACUP', 'A little moment of calm'],
   ['MENU', 'The menu · portfolio'], ['BELL', 'Service bell'],
   ['DISHES', 'Plate collection · click to select'],
-  ['RESUME', 'A freshly printed résumé'], ['SUSHI_', 'Fresh from the conveyor'],
+  ['POS', 'Counter POS terminal'], ['SUSHI_', 'Fresh from the conveyor'],
 ]);
 const loader = new GLTFLoader();
 loader.load(modelURL, (gltf) => {
   const model = gltf.scene;
   model.name = 'Sushi Counter — original Blender model';
-  let glassMaterial;
+  let glassMaterial, bottleMaterial;
   model.traverse((object) => {
     if (object.name.startsWith('SUSHI_') && object.isObject3D && !object.isMesh) plates.push(object);
     if (object.name.startsWith('Belt_tile')) beltTiles.push(object);
@@ -173,14 +152,17 @@ loader.load(modelURL, (gltf) => {
     for (const material of materials) {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       refineSurface(material);
-      if (material.name.includes('GLASS')) {
+      if (material.name.startsWith('BOTTLE GLASS')) {
+        if(!bottleMaterial){bottleMaterial=makePlastic(material,true);bottleMaterial.envMap=scene.environment;}
+        object.material=bottleMaterial;object.castShadow=false;object.receiveShadow=false;object.renderOrder=2;
+      } else if (material.name.includes('GLASS')) {
         if(!glassMaterial){glassMaterial=makePlastic(material);glassMaterial.envMap=scene.environment;}
         object.material = glassMaterial;
         object.castShadow = false;
         object.receiveShadow = false;
         object.renderOrder = 3;
       }
-      if (material.name.includes('noren') || material.name.includes('Resume') || material.name.includes('Painted sign')) material.side = THREE.DoubleSide;
+      if (material.name.includes('noren') || material.name.includes('POS · olive LCD') || material.name.includes('Painted sign')) material.side = THREE.DoubleSide;
     }
     let root = object;
     while (root.parent && root.parent !== model) root = root.parent;
@@ -308,7 +290,7 @@ window.addEventListener('keydown',(event) => {
 function resize() {
   camera.aspect = innerWidth/innerHeight;
   // Portrait retains the entire counter, rather than silently cropping its objects.
-  camera.fov = innerWidth/innerHeight < 1 ? 69 : 38;
+  camera.fov = innerWidth/innerHeight < 1 ? 69 : 42;
   camera.position.copy(home);
   if (innerWidth/innerHeight < 1) camera.position.z = 26;
   camera.updateProjectionMatrix();
