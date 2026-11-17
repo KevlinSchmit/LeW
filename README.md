@@ -54,4 +54,4 @@ On narrow portrait screens the scene widens its field of view; landscape gives t
 
 The scene uses the reference-reconstructed chef with squared shoulders, the 寿司 chest marking, and matching front and rear fabric detail. The model is built in `src/characters/createChefModel.ts` from profiles in `chef-shape.ts`. The two texture crops under `src/characters/textures` are embedded in the standalone build.
 
-The chef stands closer to the viewer at `(0, -1.25, -5.2)`, behind the conveyor. The original seated camera remains in place. Run `npm run build` to generate the updated offline preview.
+The chef stands closer to the viewer at `(0, -1.25, -4.1)`, behind the conveyor. The original seated camera remains in place. Run `npm run build` to generate the updated offline preview.
