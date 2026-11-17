@@ -25,7 +25,7 @@ renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 renderer.transmissionResolutionScale = 1;
 renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = .98;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#231c17');
@@ -51,9 +51,7 @@ controls.rotateSpeed = .35;
 controls.zoomSpeed = .45;
 scene.environment = makeReflectionStudio(renderer);
 scene.environmentIntensity = .16;
-// Warm ambient bounce reaches the whole room, including the shadowed props.
-scene.add(new THREE.HemisphereLight(0xffe3a1, 0x664a20, 1.0));
-scene.add(new THREE.AmbientLight(0xffd369,.28));
+scene.add(new THREE.HemisphereLight(0xb3a48d, 0x1b1411, .38));
 function directionalLight(color, power, position, aim, shadow = false) {
   const l = new THREE.DirectionalLight(color, power);
   l.position.set(...position);
@@ -69,13 +67,26 @@ function directionalLight(color, power, position, aim, shadow = false) {
   scene.add(l, l.target);
   return l;
 }
-// Golden-yellow light enters from the left and is carried through the room by warm fill.
-const counterKey=directionalLight(0xffd477, 3.8, [-9, 7, 6], [0, 1, 0], true);
+// Restaurant reference: local tungsten pools, dark ceiling and quiet shadow fill.
+const counterKey=new THREE.SpotLight(0xffba72,360,36,.68,.40,2);
 counterKey.name='Warm left counter key';
-const roomFill=directionalLight(0xffd467, .5, [8, 6, -4], [0, 1, 0]);
-roomFill.name='Warm tavern fill';
-// The higher warm-yellow ceiling pool adds emphasis without cooling the room.
-const centerTopLight=new THREE.SpotLight(0xffce52,500,32,.47,.70,2);
+counterKey.position.set(-9,7,6);counterKey.target.position.set(-3,1,0);
+counterKey.castShadow=true;counterKey.shadow.mapSize.set(2048,2048);
+counterKey.shadow.camera.near=.5;counterKey.shadow.camera.far=36;
+counterKey.shadow.bias=-.0002;counterKey.shadow.normalBias=.025;
+counterKey.shadow.radius=1;
+scene.add(counterKey,counterKey.target);
+const roomFill=directionalLight(0xffe0b1,.22,[8,6,-4],[0,1,0]);
+roomFill.name='Quiet room fill';
+for(const [x,power] of [[-6,36],[8,24]]){
+  const bounce=new THREE.PointLight(0xffc47b,power,12,2);
+  bounce.name='Rear wall tungsten pool';bounce.position.set(x,5.5,-8.5);scene.add(bounce);
+}
+// A quiet reflected pool keeps the POS readable without lifting all the shadows.
+const serviceBounce=new THREE.PointLight(0xffdfa3,24,9,2);
+serviceBounce.name='Right counter reflected warmth';serviceBounce.position.set(7,5,4);scene.add(serviceBounce);
+// A warm central pool lights the wood and food while the surrounding room recedes.
+const centerTopLight=new THREE.SpotLight(0xffc979,480,32,.47,.60,2);
 centerTopLight.name='Central warm yellow top light';
 centerTopLight.position.set(0,12.75,-.65);
 centerTopLight.target.position.set(0,.2,-.15);

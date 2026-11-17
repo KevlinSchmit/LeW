@@ -420,11 +420,15 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
 # Camera for the editable native scene, matching Three.js startup view.
 bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=30;bpy.context.scene.camera=cam
 # Game-style native rig: firm sun shadow, quiet ambient world, no softbox studio.
-bpy.ops.object.light_add(type='SUN',location=(-9,-6,7));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=3.8;o.data.angle=math.radians(2);o.data.color=(1,.658,.184);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
-bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · warm room fill';o.data.energy=200;o.data.size=3;o.data.color=(1,.658,.136);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+bpy.ops.object.light_add(type='SPOT',location=(-9,-6,7));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=1700;o.data.spot_size=1.36;o.data.spot_blend=.4;o.data.color=(1,.491,.168);o.rotation_euler=(Vector((-3,0,1))-o.location).to_track_quat('-Z','Y').to_euler()
+bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · quiet cool fill';o.data.energy=70;o.data.size=3;o.data.color=(1,.745,.44);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
 # The only ceiling light is a rendering source, without a visible fixture.
-bpy.ops.object.light_add(type='SPOT',location=(0,.65,12.75));o=bpy.context.object;o.name='LIGHT · central warm yellow top light';o.data.energy=1750;o.data.spot_size=.94;o.data.spot_blend=.70;o.data.shadow_soft_size=.03;o.data.color=(1,.618,.084);o.rotation_euler=(Vector((0,.15,.2))-o.location).to_track_quat('-Z','Y').to_euler()
-world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(1,.658,.184,1);world.node_tree.nodes['Background'].inputs[1].default_value=.45
+bpy.ops.object.light_add(type='SPOT',location=(0,.65,12.75));o=bpy.context.object;o.name='LIGHT · central warm yellow top light';o.data.energy=1680;o.data.spot_size=.94;o.data.spot_blend=.60;o.data.shadow_soft_size=.03;o.data.color=(1,.584,.191);o.rotation_euler=(Vector((0,.15,.2))-o.location).to_track_quat('-Z','Y').to_euler()
+# Small reflected pools on the rear timber/plaster, without visible fixtures.
+for x,power in [(-6,180),(8,120)]:
+    bpy.ops.object.light_add(type='POINT',location=(x,8.5,5.5));o=bpy.context.object;o.name='LIGHT · rear wall tungsten pool';o.data.energy=power;o.data.color=(1,.552,.198);o.data.shadow_soft_size=.05
+bpy.ops.object.light_add(type='POINT',location=(7,-4,5));o=bpy.context.object;o.name='LIGHT · right counter reflected warmth';o.data.energy=100;o.data.color=(1,.738,.366);o.data.shadow_soft_size=.05
+world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.19,.15,.12,1);world.node_tree.nodes['Background'].inputs[1].default_value=.2
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=24;scene.view_settings.view_transform='Standard';scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100
 # Native source packs all textures; web export omits cameras and studio lights.
 bpy.ops.file.pack_all()
