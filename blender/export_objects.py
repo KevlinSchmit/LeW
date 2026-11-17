@@ -3,7 +3,7 @@ import bpy
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'public'/'models'/'objects';OUT.mkdir(parents=True,exist_ok=True)
-assets={'TEAPOT':'teapot','TEACUP':'tea-cup','MENU':'menu','BELL':'service-bell','POS':'pos-terminal','CHOPSTICKS':'chopsticks','SAUCE DISH':'soy-dish','CONDIMENTS':'condiments','SUSHI_roe':'ikura','SUSHI_egg':'tamagoyaki','SUSHI_salmon':'salmon-nigiri','SUSHI_tuna':'tuna-nigiri'}
+assets={'CHEF':'sushi-chef','TEAPOT':'teapot','TEACUP':'tea-cup','MENU':'menu','BELL':'service-bell','POS':'pos-terminal','CHOPSTICKS':'chopsticks','SAUCE DISH':'soy-dish','CONDIMENTS':'condiments','SUSHI_roe':'ikura','SUSHI_egg':'tamagoyaki','SUSHI_salmon':'salmon-nigiri','SUSHI_tuna':'tuna-nigiri'}
 for prefix,filename in assets.items():
     root=next(o for o in bpy.data.objects if o.type=='EMPTY' and o.name.startswith(prefix))
     location=root.location.copy();root.location=(0,0,0)

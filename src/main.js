@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic } from './materials.js';
+import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic, outlineChef } from './materials.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -214,6 +214,8 @@ loader.load(modelURL, (gltf) => {
       }
     }
   });
+  const chef=model.children.find(o=>o.name.startsWith('CHEF'));
+  if(chef)outlineChef(chef);
   plates.forEach((plate,index)=>{plate.position.x=-6.65+index*5.;plate.scale.setScalar(1.13);});
   // Two additional assemblies complete the loop outside the seated view.
   for (const [source,x] of [[plates[1],-11.65],[plates[0],13.35]]) {

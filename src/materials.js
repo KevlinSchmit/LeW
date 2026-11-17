@@ -69,7 +69,11 @@ export function refineSurface(material) {
   material.envMapIntensity=.035;
   if('clearcoat' in material)material.clearcoat=0;
   if('specularIntensity' in material)material.specularIntensity=.10;
-  if(name.includes('honey oak')){
+  if(name.startsWith('chef')){
+    material.roughness=.98;material.envMapIntensity=.015;
+    if('specularIntensity' in material)material.specularIntensity=.03;
+    if(name.includes('indigo woven')){material.emissiveMap=material.map;material.emissive.set('#b4c0df');material.emissiveIntensity=.45;}
+  }else if(name.includes('honey oak')){
     // A smooth protective film sits over the painted, lightly textured wood.
     material.metalness=0;material.roughness=.32;material.envMapIntensity=.18;
     material.normalScale?.setScalar(.07);
@@ -119,4 +123,20 @@ export function makePlastic(source,bottle=false) {
   };
   material.customProgramCacheKey=()=>bottle ? 'painted-bottle-v1' : 'painted-pet-v1';
   return material;
+}
+
+/** Inverted hulls give the low-poly chef a readable black silhouette. */
+export function outlineChef(root) {
+  const outline=new THREE.MeshBasicMaterial({name:'CHEF · black outline',color:0x080605,side:THREE.BackSide});
+  outline.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+      'vec3 transformed=vec3(position+normal*.028);');
+  };
+  outline.customProgramCacheKey=()=> 'chef-outline-v1';
+  const meshes=[];root.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  for(const mesh of meshes){
+    const hull=new THREE.Mesh(mesh.geometry,outline);hull.name='Chef silhouette ink';
+    hull.userData.chefOutline=true;hull.raycast=()=>{};hull.castShadow=false;hull.receiveShadow=false;
+    mesh.add(hull);
+  }
 }

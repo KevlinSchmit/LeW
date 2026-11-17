@@ -31,7 +31,7 @@ try {
   });
   assert.equal(assets.plates,6,'Four main sushi assemblies plus two off-screen loop assemblies');
   assert.ok(assets.meshes>100 && assets.vertices>10000,'Actual 3D geometry loaded');
-  for(const name of ['TEAPOT','TEACUP','MENU','BELL','POS'])
+  for(const name of ['TEAPOT','TEACUP','MENU','BELL','POS','CHEF'])
     assert.ok(assets.names.some(n=>n.startsWith(name)),name+' is a separate named assembly');
   assert.ok(!assets.names.some(name=>/lantern|washi|hanging_stem/i.test(name)),'All background light fixtures are removed');
   const topLight=await page.evaluate(()=>{
@@ -46,6 +46,24 @@ try {
   assert.ok(topLight.color[0]>topLight.color[1] && topLight.color[1]>topLight.color[2],'Overhead light is warm yellow');
   assert.ok(topLight.menu && topLight.sushi && !topLight.side,'The overhead pool covers the menu and central sushi, not the side props');
   assert.ok(topLight.shadows && topLight.shadowMapReady,'The spotlight has a rendered shadow map');
+  const chefInfo=await page.evaluate(()=>{
+    const app=window.__sushi,chef=app.model.children.find(o=>o.name.startsWith('CHEF'));
+    let triangles=0,skinned=false;const paints=new Set();
+    chef.traverse(o=>{if(!o.isMesh || o.userData.chefOutline)return;
+      triangles+=(o.geometry.index?.count ?? o.geometry.attributes.position.count)/3;
+      skinned ||= !!o.isSkinnedMesh;
+      if(o.material.map)paints.add(o.material.name);
+    });
+    const V=app.camera.position.constructor;
+    const chin=new V(0,9.4,0).applyMatrix4(chef.matrixWorld).project(app.camera);
+    const head=new V(0,11.6,0).applyMatrix4(chef.matrixWorld).project(app.camera);
+    return {triangles,skinned,paints:paints.size,position:chef.position.toArray(),chinY:(1-chin.y)/2,headY:(1-head.y)/2};
+  });
+  assert.ok(chefInfo.triangles<6000,'Chef uses low-poly geometry');
+  assert.ok(chefInfo.paints>=5,'Separate skin, face, cotton, hair and headband textures loaded');
+  assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
+  assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor and rear plate stacks');
+  assert.ok(chefInfo.chinY>=0 && chefInfo.chinY<.1 && chefInfo.headY<0,'Seated framing crops the chef at the chin');
   const artDirection=await page.evaluate(()=>{
     const model=window.__sushi.model;
     const root=prefix=>model.children.find(o=>o.name.startsWith(prefix));
@@ -114,6 +132,7 @@ try {
   assert.equal(assets.moving,true);
   const x=await page.evaluate(()=>window.__sushi.plates[0].position.x);
   await page.waitForFunction(before=>window.__sushi.plates[0].position.x<before-.005,x);
+  assert.deepEqual(await page.evaluate(()=>window.__sushi.model.children.find(o=>o.name.startsWith('CHEF')).position.toArray()),chefInfo.position,'Chef stays stationary while the sushi moves');
   console.log('Shadow synchronization:',await checkShadowMotion(page));
   await page.getByRole('button',{name:'Conveyor on'}).click();
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false);
@@ -141,6 +160,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette, central warm spotlight, removed background fixtures, per-frame synchronized shadows.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette, central warm spotlight, removed background fixtures, per-frame synchronized shadows, static textured low-poly chef, chin-cropped framing.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}

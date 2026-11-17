@@ -417,6 +417,9 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
             o=mesh(kind+' · curved fish fillet',vs,faces,salmon if kind=='salmon' else tuna,g,uv)
             so=o.modifiers.new('Thick hand-cut fish','SOLIDIFY');so.thickness=.19;bevel(o,.045,4)
 
+# Static chef is independently editable and exported with the scene.
+exec(compile((ROOT/'blender'/'build_chef.py').read_text(),str(ROOT/'blender'/'build_chef.py'),'exec'))
+
 # Camera for the editable native scene, matching Three.js startup view.
 bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=30;bpy.context.scene.camera=cam
 # Game-style native rig: firm sun shadow, quiet ambient world, no softbox studio.

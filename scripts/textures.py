@@ -189,3 +189,7 @@ for name,rough,strength in [('glaze',.62,.12),('wood',.83,.20),('cloth',.94,.24)
             rp[x,y]=int(255*max(.01,min(1,rough+v*.025)))
     save(normal,name+'_normal');roughness.save(OUT/(name+'_roughness.png'))
 print('Painted game textures generated: 128–512px, seeded brushwork and wraparound ornament.')
+
+# Character texture generation is isolated so existing prop artwork stays deterministic.
+import runpy
+runpy.run_path(str(Path(__file__).with_name('chef_textures.py')))

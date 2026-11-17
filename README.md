@@ -1,6 +1,6 @@
 # The Sushi Counter
 
-A full-screen, three-dimensional portfolio scene for Kevlin Schmit, reconstructed from the supplied sushi restaurant reference. Original Blender geometry, painted textures and a Three.js renderer; no characters, stock background images, or third-party 3D assets.
+A full-screen, three-dimensional portfolio scene for Kevlin Schmit, reconstructed from the supplied sushi restaurant reference. Original Blender geometry, painted textures, a Three.js renderer and a static sushi chef; no stock background images or third-party 3D assets.
 
 Download **[preview.html](preview.html)** for a ready-built, self-contained HTML view.
 
@@ -27,8 +27,8 @@ npm run build
 - `blender/build_scene.py` — reproducible original geometry for the restaurant, conveyor, teapot, cup, menu, chopsticks, bell, POS terminal, condiment jars and sushi. Every component is named and independently editable in the native scene.
 - `blender/optimize_export.py` — merges the web copy by material **within** each independent assembly; the Blender source stays separated.
 - `scripts/textures.py` / `blender/textures/` — deterministic original wood, blossom, seigaiha, fish, signage and paper artwork.
-- `public/models/objects/` — 12 individual GLB prop files, exported at local origin.
-- `public/models/sushi-bar.glb` — portable web scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL` and `POS` are separate scene roots.
+- `public/models/objects/` — 13 individual GLB assets, exported at local origin.
+- `public/models/sushi-bar.glb` — portable web scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL`, `POS` and `CHEF` are separate scene roots.
 
 To regenerate with Blender 4.3+ and Python 3 / Pillow:
 
@@ -49,7 +49,9 @@ The counter extends toward the bottom of the view. The menu is a smaller stitche
 
 The original seated camera is restored (38° vertical field of view, position 0 / 8 / 17.2); the scene is not scaled down. Lighting follows the restaurant reference through contrast: a local amber spotlight from the left, a warm central pool across the menu and sushi, small tungsten pools on the rear wall, and subdued neutral-warm fill. The ceiling and unlit parts of the room remain dark; lit wood and ceramic surfaces carry warm highlights instead of a uniform yellow tint. All background lanterns, shades, ribs and hanging stems are removed from the generated model. Moving sushi and belt tiles refresh both shadow maps on every rendered moving frame, preventing the previous twelve-frame shadow lag; paused scenes retain cached shadows. Stronger near-black contours and authored ink trim support the illustrative finish. A restrained 10% saturation boost keeps the painted palette rich. An orange-brown display grade reduces the yellow-green cast after tone mapping while preserving each pixel’s luminance, so the approved light positions, strengths and shadow contrast stay unchanged. Negative color channels are clamped before tone mapping. Both rear plate columns sit on a raised service ledge; mustard yellow joins the ceramic and lacquer colors. The sauce dish and chopstick dish are rebuilt with planar cut corners, visible chamfers and sloping inset basins rather than rounded box rims. Glass vessels use a thicker green-edged finish; PET sushi covers have separate thin-shell transparency, rolled lips and narrow painted glints. Food stays sharp through the covers. The oak counter has a clear protective varnish over the painted grain, with low-roughness clearcoat and a wood-only environment containing small warm rectangular emitters. Analytic rectangular lamp reflections follow the camera direction and retain firm edges without broad softbox blur or changing the approved lighting of the other props. Depth-of-field and broad cinematic softbox reflections are removed. The native `.blend` packs the same authored textures; web-specific ink, color grading and transparency tuning live in `src/main.js` and `src/materials.js`.
 
-On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 8 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 106,000 vertices, down from approximately 418,000.
+On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 9 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 111,000 vertices, down from approximately 418,000.
+
+The static sushi chef stands behind the conveyor and both rear plate columns. The seated view deliberately crops his head at the chin, emphasizing the upper body. He wears an indigo cross-collar cotton jacket, dark work trousers and a dotted white tenugui with tied tails. Original 128–512px painted maps provide cloth weave, folds, stitched hems, skin, facial features and hair. Low-poly geometry, authored black seams and a web inverted-hull outline retain the game-asset style. There is no rig, keyframed animation or character update loop. `blender/build_chef.py` and `scripts/chef_textures.py` reproduce the character; `public/models/objects/sushi-chef.glb` contains the complete standing figure for editing or reuse.
 
 ## Validation
 
