@@ -12,38 +12,46 @@ TEX=ROOT/'blender'/'textures'
 bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 for d in list(bpy.data.materials):bpy.data.materials.remove(d)
 
-def mat(name,color,metal=0,rough=.4,texture=None,emission=0):
+def mat(name,color,metal=0,rough=.4,texture=None,emission=0,surface=None):
     m=bpy.data.materials.new(name);m.diffuse_color=(*color,1);m.use_nodes=True
     bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=(*color,1);bs.inputs['Roughness'].default_value=rough;bs.inputs['Metallic'].default_value=metal
     if texture:
         tex=m.node_tree.nodes.new('ShaderNodeTexImage');tex.image=bpy.data.images.load(str(TEX/(texture+'.png')),check_existing=True);m.node_tree.links.new(tex.outputs['Color'],bs.inputs['Base Color'])
+    if surface:
+        norm=m.node_tree.nodes.new('ShaderNodeTexImage');norm.image=bpy.data.images.load(str(TEX/(surface+'_normal.png')),check_existing=True);norm.image.colorspace_settings.name='Non-Color'
+        normal=m.node_tree.nodes.new('ShaderNodeNormalMap');normal.inputs['Strength'].default_value=1.0
+        m.node_tree.links.new(norm.outputs['Color'],normal.inputs['Color']);m.node_tree.links.new(normal.outputs['Normal'],bs.inputs['Normal'])
+        rm=m.node_tree.nodes.new('ShaderNodeTexImage');rm.image=bpy.data.images.load(str(TEX/(surface+'_roughness.png')),check_existing=True);rm.image.colorspace_settings.name='Non-Color'
+        m.node_tree.links.new(rm.outputs['Color'],bs.inputs['Roughness'])
+    if surface in ['glaze','wood','fish']:
+        bs.inputs['Coat Weight'].default_value=.35 if surface!='wood' else .25;bs.inputs['Coat Roughness'].default_value=.18
     if emission:bs.inputs['Emission Color'].default_value=(*color,1);bs.inputs['Emission Strength'].default_value=emission
     return m
-wood=mat('Honey oak · fine grain',(.48,.23,.08),rough=.29,texture='wood')
+wood=mat('Honey oak · fine grain',(.48,.23,.08),rough=.29,texture='wood',surface='wood')
 darkwood=mat('Smoked walnut',(.038,.013,.004),rough=.4)
 edgewood=mat('End-grain & bamboo',(.35,.155,.045),rough=.35)
-gold=mat('Warm polished brass',(.73,.43,.12),metal=.78,rough=.2)
-steel=mat('Brushed champagne steel',(.39,.33,.26),metal=.72,rough=.34)
+gold=mat('Warm polished brass',(.73,.43,.12),metal=.85,rough=.2,surface='metal')
+steel=mat('Brushed champagne steel',(.39,.33,.26),metal=.78,rough=.34,surface='metal')
 black=mat('Blackened iron',(.025,.028,.025),metal=.55,rough=.32)
-cream=mat('Ivory glazed ceramic',(.79,.67,.46),rough=.23)
-olive=mat('Celadon glaze',(.38,.43,.19),rough=.22)
-floral=mat('Hand-painted celadon · sakura',(.38,.43,.19),rough=.25,texture='blossom')
-red=mat('Vermilion lacquer',(.57,.035,.019),rough=.24)
-navy=mat('Indigo lacquer',(.10,.16,.27),rough=.28)
-green=mat('Olive lacquer',(.35,.38,.075),rough=.25)
-rice=mat('Pearl rice',(.86,.80,.65),rough=.48)
-nori=mat('Nori seaweed',(.032,.047,.025),rough=.63)
-omelet=mat('Tamagoyaki · golden egg',(.97,.63,.045),rough=.33)
+cream=mat('Ivory glazed ceramic',(.79,.67,.46),rough=.23,surface='glaze')
+olive=mat('Celadon glaze',(.38,.43,.19),rough=.22,surface='glaze')
+floral=mat('Hand-painted celadon · sakura',(.38,.43,.19),rough=.25,texture='blossom',surface='glaze')
+red=mat('Vermilion lacquer',(.57,.035,.019),rough=.24,surface='glaze')
+navy=mat('Indigo lacquer',(.10,.16,.27),rough=.28,surface='glaze')
+green=mat('Olive lacquer',(.35,.38,.075),rough=.25,surface='glaze')
+rice=mat('Pearl rice',(.78,.71,.56),rough=.40,surface='rice')
+nori=mat('Nori seaweed',(.032,.047,.025),rough=.47,texture='nori',surface='nori')
+omelet=mat('Tamagoyaki · golden egg',(.97,.63,.045),rough=.33,texture='egg',surface='rice')
 roe=mat('Ikura · orange pearl',(.98,.235,.008),rough=.16)
 bs=roe.node_tree.nodes.get('Principled BSDF');bs.inputs['Subsurface Weight'].default_value=.12;bs.inputs['Coat Weight'].default_value=.4
-salmon=mat('Salmon · cut striations',(.94,.35,.10),rough=.30,texture='salmon')
-tuna=mat('Tuna · cut striations',(.75,.07,.05),rough=.30,texture='tuna')
-glass=mat('GLASS · cloche',(.92,.83,.69),rough=.075)
-bs=glass.node_tree.nodes.get('Principled BSDF');bs.inputs['Transmission Weight'].default_value=1;bs.inputs['IOR'].default_value=1.45
+salmon=mat('Salmon · cut striations',(.94,.35,.10),rough=.26,texture='salmon',surface='fish')
+tuna=mat('Tuna · cut striations',(.75,.07,.05),rough=.26,texture='tuna',surface='fish')
+glass=mat('GLASS · cloche',(.99,.98,.96),rough=.035,surface='plastic')
+bs=glass.node_tree.nodes.get('Principled BSDF');bs.inputs['Transmission Weight'].default_value=1;bs.inputs['IOR'].default_value=1.47
 tea=mat('Fresh green tea',(.07,.13,.008),rough=.16)
 soy=mat('Dark soy sauce',(.035,.009,.003),rough=.17)
 pink=mat('Pickled ginger',(.87,.35,.27),rough=.38)
-menuMat=mat('Woven indigo menu',(.10,.12,.20),rough=.72,texture='menu')
+menuMat=mat('Woven indigo menu',(.10,.12,.20),rough=.72,texture='menu',surface='cloth')
 paper=mat('Warm cotton paper',(.91,.79,.61),rough=.8)
 receiptMat=mat('Resume · printed paper',(.91,.79,.61),rough=.8,texture='receipt')
 curtain=mat('Indigo noren fabric',(.07,.1,.19),rough=.9,texture='curtain')
@@ -172,7 +180,8 @@ for x in [-8,-3,2,6,10]:
     cylinder('Distant tea cup',(x+1,7.2,1.58),.22,.5,cream,room)
 
 # Stacks at left, each dish is its own mesh.
-stack=group('DISHES · two lacquer stacks')
+stack=group('DISHES · two lacquer stacks',(0,4.2,0))
+box('Plate stack rear service ledge',(-10.2,6.0,1.64),(5.5,4.3,.24),wood,room,b=.08)
 plate_profile=[(0,0),(.68,0),(.78,.06),(.95,.15),(1.0,.23),(1.0,.29),(.95,.31),(.86,.22),(.70,.14),(0,.14)]
 for col,(x,y,count,r) in enumerate([(-10.3,1.0,15,1.6),(-8.6,3.0,10,1.5)]):
     for i in range(count):
@@ -293,8 +302,20 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
     g=group('SUSHI_'+kind,(x,2.05,1.79))
     lathe(kind+' · lacquer plate',[(0,0),(.75,0),(1.45,.07),(1.88,.20),(1.92,.26),(1.89,.32),(1.76,.29),(1.54,.22),(0,.21)],pm,g,n=96)
     torus(kind+' · plate rim',(0,0,.28),1.85,.035,pm,g)
+    for r in [1.42,1.52]:torus(kind+' · inset glaze line',(0,0,.24),r,.012,cream if kind!='egg' else olive,g)
     # glass bell jar is a separate mesh, never part of the food
-    lathe(kind+' · GLASS cloche',[(1.77,.30),(1.76,.55),(1.70,1.08),(1.59,1.56),(1.39,1.91),(1.08,2.10),(.60,2.20),(0,2.22)],glass,g,n=96)
+    control=[(1.79,.33),(1.78,.55),(1.73,1.02),(1.61,1.52),(1.39,1.90),(1.02,2.12),(.53,2.21),(0,2.23)]
+    profile=[]
+    for k in range(len(control)-1):
+        p0=Vector(control[max(0,k-1)]);p1=Vector(control[k]);p2=Vector(control[k+1]);p3=Vector(control[min(len(control)-1,k+2)])
+        for sub in range(7):
+            t=sub/7
+            v=.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t)
+            profile.append((max(0,v.x),v.y))
+    profile.append(control[-1])
+    cloche=lathe(kind+' · GLASS cloche',profile,glass,g,n=112)
+    shell=cloche.modifiers.new('Thin molded plastic wall','SOLIDIFY');shell.thickness=.022;shell.offset=-1
+    lathe(kind+' · GLASS molded foot',[(1.79,.30),(1.83,.30),(1.84,.32),(1.83,.36),(1.79,.36)],glass,g,n=112)
     torus(kind+' · glass lower rolled rim',(0,0,.32),1.77,.025,glass,g)
     cylinder(kind+' · sign clip',(0,.10,2.31),.095,.20,steel,g,vertices=24)
     # sign: a small ceramic rounded square with original painted art.
@@ -305,18 +326,21 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
     if kind=='roe':
         for ix in [-.48,.47]:
             # Each gunkan has a rice base, wavy dark seaweed collar and translucent roe.
-            sphere('Gunkan rice base',(ix,0,.45),(.49,.51,.24),rice,g)
-            lathe('Gunkan nori wrap',[(.48,.25),(.50,.40),(.50,.86),(.48,.90),(.45,.87),(.46,.40)],nori,g,loc=(ix,0,0),n=48)
+            sphere('Gunkan rice base',(ix,0,.45),(.44,.44,.22),rice,g)
+            wrap=lathe('Gunkan nori wrap',[(.48,.25),(.50,.40),(.50,.86),(.48,.90),(.45,.87),(.46,.40)],nori,g,loc=(ix,0,0),n=80)
+            for vertex in wrap.data.vertices:
+                a=math.atan2(vertex.co.y,vertex.co.x-ix);wave=.012*sin(a*13)+.008*cos(a*23+vertex.co.z*8)
+                vertex.co.x+=cos(a)*wave;vertex.co.y+=sin(a)*wave;vertex.co.z+=.010*sin(a*9)
             for j in range(54):
                 a=random.random()*2*pi;r=.40*math.sqrt(random.random());z=.88+.16*(1-r/.5)+random.uniform(-.03,.06)
-                sphere('Ikura individual roe',(ix+r*cos(a),r*sin(a),z),(.09,.09,.09),roe,g,seg=12,rings=8)
+                sphere('Ikura individual roe',(ix+r*cos(a),r*sin(a),z),(.09,.09,.09),roe,g,seg=20,rings=12)
     else:
         sphere(kind+' · rice body',(0,0,.50),(.98,.53,.30),rice,g,seg=32,rings=16)
         grains=[]
-        for j in range(130):
+        for j in range(265):
             a=random.uniform(0,2*pi);v=random.uniform(-.85,.85);fac=math.sqrt(1-v*v)
-            xx=.94*fac*cos(a);yy=.49*fac*sin(a);zz=.50+.28*v
-            o=sphere('Rice grain',(xx,yy,zz),(.105,.055,.073),rice,g,seg=8,rings=6);o.rotation_euler=(random.uniform(-.5,.5),random.uniform(-.5,.5),random.uniform(0,pi));grains.append(o)
+            xx=.98*fac*cos(a);yy=.53*fac*sin(a);zz=.50+.29*v
+            o=sphere('Rice grain',(xx,yy,zz),(.105+random.uniform(-.012,.012),.051,.061),rice,g,seg=12,rings=8);o.rotation_euler=(random.uniform(-.5,.5),random.uniform(-.5,.5),random.uniform(0,pi));grains.append(o)
         join(grains,kind+' · sculpted individual rice grains')
         if kind=='egg':
             ob=box('Tamagoyaki folded egg',(0,0,.99),(2.15,1.03,.38),omelet,g,b=.07);ob.rotation_euler[2]=-.07
@@ -330,17 +354,17 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
                 u=i/32;x=(u-.5)*2.52
                 for j in range(17):
                     v=j/16;y=(v-.5)*1.22
-                    z=.68+.46*max(0,cos(x/1.33*pi/2))+.055*cos(y/.65*pi/2)
+                    z=.65+.47*max(0,cos(x/1.38*pi/2))+.085*cos(y/.65*pi/2)+.01*sin(x*9+y*4)
                     vs.append((x,y,z));uv.append((u,v))
             for i in range(32):
                 for j in range(16):a=i*17+j;faces.append((a,a+17,a+18,a+1))
             o=mesh(kind+' · curved fish fillet',vs,faces,salmon if kind=='salmon' else tuna,g,uv)
-            so=o.modifiers.new('Thick hand-cut fish','SOLIDIFY');so.thickness=.13;bevel(o,.04,3)
+            so=o.modifiers.new('Thick hand-cut fish','SOLIDIFY');so.thickness=.19;bevel(o,.045,4)
 
 # Camera for the editable native scene, matching Three.js startup view.
-bpy.ops.object.camera_add(location=(0,-17.8,9.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.45))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=39;bpy.context.scene.camera=cam
+bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=30;bpy.context.scene.camera=cam
 # Studio lights retained in the Blender source; the web app creates its own tuned rig.
-for name,loc,power,size,color in [('Counter softbox',(-4,-5,9),2000,8,(1,.70,.40)),('Ceiling glow',(5,3,8),1700,7,(1,.65,.32)),('Window fill',(-7,9,5),750,5,(.45,.60,1))]:
+for name,loc,power,size,color in [('Counter softbox',(-4,-5,9),1400,8,(1,.54,.24)),('Ceiling glow',(5,3,8),1100,7,(1,.43,.18)),('Window fill',(-7,9,5),180,5,(.45,.60,1))]:
     bpy.ops.object.light_add(type='AREA',location=loc);o=bpy.context.object;o.name=name;o.data.energy=power;o.data.shape='DISK';o.data.size=size;o.data.color=color;o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
 world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.12,.075,.04,1);world.node_tree.nodes['Background'].inputs[1].default_value=.4
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=48;scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100

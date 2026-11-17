@@ -13,7 +13,7 @@ npm ci
 npm run dev -- --port 5173
 ```
 
-Open the address printed by Vite. The conveyor moves continuously. Pause it with the bottom control or Space while the scene canvas has focus. **Look around** enables drag and scroll; click **Reset view**, the logo, or press Escape to return to your seat. Reduced-motion preferences start the conveyor paused. The bell, menu, tea set and printer are independent objects ready for later interaction work; their portfolio actions have deliberately not been assigned yet.
+Open the address printed by Vite. The conveyor moves continuously. Pause it with the bottom control or Space while the scene canvas has focus. **Look around** enables drag and scroll; click **Reset view**, the logo, or press Escape to return to your seat. Reduced-motion preferences start the conveyor paused. The stacked plates sit on a service ledge behind the conveyor. Click their visible 3D surfaces or the **Plate collection** button to toggle selection; the canvas emits `plate-stack-select` with `{ selected }` for later portfolio navigation. The bell, menu, tea set and printer are independent objects ready for later interaction work; their portfolio actions have deliberately not been assigned yet.
 
 ```sh
 npm run build
@@ -43,9 +43,9 @@ The static `.blend` is saved before web optimization. Editing the native file an
 
 ## Rendering
 
-The reference composition is interpreted as actual 3D geometry: hollow celadon vessels, a wrapped bamboo handle, separately modeled rice grains and roe, curved fish fillets, clear glass cloches, a stitched cloth menu, a brass service bell and a curling printed résumé. Warm lighting, a depth-aware background blur, shadows, reflections and a restrained overlay keep the counter central. Materials, proportions and decorations are an original approximation, not a pixel-identical reproduction of the reference.
+The reference composition is interpreted as actual 3D geometry: hollow celadon vessels, a wrapped bamboo handle, separately modeled rice grains and roe, curved fish fillets, clear glass cloches, a stitched cloth menu, a brass service bell and a curling printed résumé. Darker amber lighting, broad photographic reflection sources, a depth-aware background blur and shadows keep the counter central. Thin-walled molded PET covers use Fresnel-weighted transparency, warm studio reflections, a subtle surface texture and a separate rolled foot. Their native Blender material also retains physical transmission for rendering. Original normal and roughness maps distinguish wet fish, fibrous nori, polished plastic, mineral-speckled glaze, brushed metal, cloth and varnished wood; the native Blender source packs these textures too. Materials, proportions and decorations are an original approximation, not a pixel-identical reproduction of the reference.
 
-On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The HTML contains roughly 13 MB of uncompressed model and application data.
+On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The HTML contains roughly 26 MB of uncompressed model and application data.
 
 ## Validation
 
@@ -54,4 +54,4 @@ npm run build
 npm test
 ```
 
-The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.
+The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { makeReflectionStudio, refineSurface, makePlastic } from './materials.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -23,9 +24,9 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
-renderer.transmissionResolutionScale = .5;
+renderer.transmissionResolutionScale = 1;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.02;
+renderer.toneMappingExposure = .96;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#2c1c12');
@@ -49,13 +50,12 @@ controls.minAzimuthAngle = -.22;
 controls.maxAzimuthAngle = .22;
 controls.rotateSpeed = .35;
 controls.zoomSpeed = .45;
-const pmrem = new THREE.PMREMGenerator(renderer);
-const environment = new RoomEnvironment();
-scene.environment = pmrem.fromScene(environment, .04).texture;
-environment.dispose();
-pmrem.dispose();
-scene.environmentIntensity = .42;
-scene.add(new THREE.HemisphereLight(0xffdfb1, 0x3d2310, .45));
+scene.environment = makeReflectionStudio(renderer);
+scene.environmentIntensity = .48;
+scene.add(new THREE.HemisphereLight(0xffe1b2, 0x392415, .43));
+RectAreaLightUniformsLib.init();
+const counterGlow=new THREE.RectAreaLight(0xffd1a1,4.0,8,3);
+counterGlow.position.set(-3,7,4);counterGlow.lookAt(0,0,-1);scene.add(counterGlow);
 function areaLight(color, power, position, size, aim, shadow = false) {
   const l = new THREE.DirectionalLight(color, power);
   l.position.set(...position);
@@ -71,13 +71,14 @@ function areaLight(color, power, position, size, aim, shadow = false) {
   scene.add(l, l.target);
   return l;
 }
-areaLight(0xffcf89, 1.8, [-5, 10, 7], 8, [0, 0, 0], true);
-areaLight(0xffad58, 1.25, [8, 8, -3], 7, [0, 0, 0]);
-areaLight(0xaac2df, .48, [-8, 6, -10], 5, [0, 2, 0]);
-// Broad, warm pools below the paper lanterns.
-for (const [x, y, z, power] of [[-8,6.5,-4,40],[0,7,-7,55],[7,6.5,-7,40]]) {
-  const lamp = new THREE.PointLight(0xffb85e, power, 15, 2);
-  lamp.position.set(x,y,z); scene.add(lamp);
+areaLight(0xffd4a3, 1.75, [-5, 10, 7], 8, [0, 0, 0], true);
+areaLight(0xffaa65, .85, [8, 8, -3], 7, [0, 0, 0]);
+areaLight(0xffe5c4, .65, [0, 8, 12], 8, [0, 1, 0]);
+areaLight(0xaac2df, .12, [-8, 6, -10], 5, [0, 2, 0]);
+// Lantern-sized sources produce broad highlights instead of pin-like sparkles.
+for (const [x,y,z] of [[-8,6.5,-4],[0,7,-7],[7,6.5,-7]]) {
+  const lamp=new THREE.RectAreaLight(0xffb85e,5,1.6,1.3);
+  lamp.position.set(x,y,z);lamp.lookAt(x,0,z);scene.add(lamp);
 }
 // Depth-aware background softness: keep the counter crisp and let the empty room recede.
 const renderSize = new THREE.Vector2();
@@ -122,8 +123,9 @@ const finishMaterial = new THREE.ShaderMaterial({
         }
         color=sum/weight;
       }
+      color*=mix(1.,.86,smoothstep(focusDistance+5.,focusDistance+13.,distance));
       vec2 centered=(vUv-.5)*vec2(1.,.8);
-      color*=1.-.20*dot(centered,centered);
+      color*=1.-.42*dot(centered,centered);
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -133,6 +135,7 @@ const finishMaterial = new THREE.ShaderMaterial({
 finalScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),finishMaterial));
 function renderScene() {
   finishMaterial.uniforms.focusDistance.value = camera.position.distanceTo(controls.target);
+  updateStackHotspot();
   renderer.setRenderTarget(sceneTarget);
   renderer.render(scene,camera);
   renderer.setRenderTarget(null);
@@ -141,6 +144,8 @@ function renderScene() {
 const plates = [];
 const beltTiles = [];
 const pickables = [];
+const stackMeshes = [];
+let plateStack;
 let loaded = false;
 let motion = !reducedMotion;
 let elapsed = 0;
@@ -150,26 +155,14 @@ const raycaster = new THREE.Raycaster();
 const interactableNames = new Map([
   ['TEAPOT', 'Sakura tea pot'], ['TEACUP', 'A little moment of calm'],
   ['MENU', 'The menu · portfolio'], ['BELL', 'Service bell'],
+  ['DISHES', 'Plate collection · click to select'],
   ['RESUME', 'A freshly printed résumé'], ['SUSHI_', 'Fresh from the conveyor'],
 ]);
 const loader = new GLTFLoader();
 loader.load(modelURL, (gltf) => {
   const model = gltf.scene;
   model.name = 'Sushi Counter — original Blender model';
-  const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xb0a08d, metalness: 0, roughness: .035,
-    transmission: 0, thickness: .025, ior: 1.45,
-    transparent: true, opacity: .42, depthWrite: false,
-    envMapIntensity: 1.1, side: THREE.FrontSide,
-    clearcoat: 1, clearcoatRoughness: .08,
-  });
-  // Fresnel-weighted alpha gives clear centers and readable rolled-glass edges.
-  glassMaterial.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>',
-      `float glassEdge=pow(1.-abs(dot(normalize(vNormal),normalize(vViewPosition))),2.5);
-       diffuseColor.a*=.065+.935*glassEdge;
-       #include <alphatest_fragment>`);
-  };
+  let glassMaterial;
   model.traverse((object) => {
     if (object.name.startsWith('SUSHI_') && object.isObject3D && !object.isMesh) plates.push(object);
     if (object.name.startsWith('Belt_tile')) beltTiles.push(object);
@@ -179,14 +172,13 @@ loader.load(modelURL, (gltf) => {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      refineSurface(material);
       if (material.name.includes('GLASS')) {
+        if(!glassMaterial){glassMaterial=makePlastic(material);glassMaterial.envMap=scene.environment;}
         object.material = glassMaterial;
         object.castShadow = false;
         object.receiveShadow = false;
         object.renderOrder = 3;
-      }
-      if (material.name.includes('Washi')) {
-        material.emissiveIntensity = 1.1;
       }
       if (material.name.includes('noren') || material.name.includes('Resume') || material.name.includes('Painted sign')) material.side = THREE.DoubleSide;
     }
@@ -206,12 +198,18 @@ loader.load(modelURL, (gltf) => {
     const extra=source.clone(true);extra.name=source.name+'_return';extra.position.x=x;model.add(extra);plates.push(extra);
   }
   scene.add(model);
+  plateStack = model.children.find(object=>object.name.startsWith('DISHES'));
+  // Give the collection its own finish for an independent selection state.
+  plateStack.traverse(object=>{
+    if(object.isMesh){object.material=object.material.clone();stackMeshes.push(object);}
+  });
+  document.querySelector('#plate-stack').hidden=false;
   for (const plate of plates) plate.userData.startX = plate.position.x;
   for (const tile of beltTiles) tile.userData.startX = tile.position.x;
   renderer.shadowMap.needsUpdate = true;
   loaded = true;
   document.body.dataset.ready = 'true';
-  window.__sushi = { scene, camera, renderer, plates, controls, model, get motion() { return motion; } };
+  window.__sushi = { scene, camera, renderer, plates, controls, model, plateStack, stackMeshes, pickAt, get motion() { return motion; } };
   loading.querySelector('i').style.width = '100%';
   requestAnimationFrame(() => { renderScene(); loading.classList.add('done'); });
 }, (progress) => {
@@ -269,7 +267,38 @@ document.addEventListener('fullscreenchange',() => {
 canvas.addEventListener('pointermove',(event) => {
   pointer.set(event.clientX/innerWidth*2-1, -(event.clientY/innerHeight)*2+1);
 });
-canvas.addEventListener('pointerleave',() => { pointer.set(0,0); });
+const stackButton=document.querySelector('#plate-stack');
+const stackAnchor=new THREE.Vector3(-10.25,5.95,-5.2);
+const stackScreen=new THREE.Vector3();
+function updateStackHotspot(){
+  if(!plateStack || stackButton.matches(':hover,:focus-visible'))return;
+  stackScreen.copy(stackAnchor).project(camera);
+  stackButton.style.left=`${Math.round(THREE.MathUtils.clamp((stackScreen.x*.5+.5)*innerWidth,60,innerWidth-60))}px`;
+  stackButton.style.top=`${Math.round(THREE.MathUtils.clamp((-stackScreen.y*.5+.5)*innerHeight,115,innerHeight-140))}px`;
+}
+function selectPlateStack(){
+  if(!plateStack)return;
+  const selected=!plateStack.userData.selected;
+  plateStack.userData.selected=selected;
+  stackButton.setAttribute('aria-pressed',String(selected));
+  for(const mesh of stackMeshes){mesh.material.emissive.set(selected ? '#6d340e' : '#000000');mesh.material.emissiveIntensity=.18;}
+  scene.userData.selectedObject=selected ? plateStack.name : null;
+  canvas.dispatchEvent(new CustomEvent('plate-stack-select',{detail:{selected}}));
+  showHint(selected ? 'Plate collection selected' : 'Back to the counter');
+}
+stackButton.addEventListener('click',selectPlateStack);
+function pickAt(clientX,clientY){
+  if(!loaded)return null;
+  raycaster.setFromCamera(new THREE.Vector2(clientX/innerWidth*2-1,1-clientY/innerHeight*2),camera);
+  const hit=raycaster.intersectObject(window.__sushi.model,true).find(hit=>!String(hit.object.material?.name).includes('Clear molded'));
+  if(!hit)return null;
+  let root=hit.object;while(root.parent && root.parent!==window.__sushi.model)root=root.parent;
+  return root;
+}
+canvas.addEventListener('click',event=>{
+  if(!lookMode && pickAt(event.clientX,event.clientY)===plateStack)selectPlateStack();
+});
+canvas.addEventListener('pointerleave' ,() => { pointer.set(0,0); });
 window.addEventListener('keydown',(event) => {
   if (event.code === 'Escape') resetView();
   if (event.code === 'Space' && document.activeElement === canvas) {
@@ -318,6 +347,7 @@ function animate(now) {
     raycaster.setFromCamera(pointer,camera);
     const hit = raycaster.intersectObjects(pickables,false)[0];
     canvas.title = hit ? hit.object.userData.sceneLabel : 'Take a seat at the sushi counter';
+    canvas.style.cursor = hit?.object.userData.sceneLabel?.startsWith('Plate collection') ? 'pointer' : 'default';
   }
   renderScene();
 }

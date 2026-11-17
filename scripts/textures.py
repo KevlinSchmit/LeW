@@ -52,15 +52,43 @@ d.ellipse((cx-29,cy-29,cx+29,cy+29),fill=(237,159,34))
 for a in range(13):
     t=a*2*math.pi/13; x=cx+35*math.cos(t);y=cy+35*math.sin(t);d.line((cx,cy,x,y),fill=(217,142,35),width=2);d.ellipse((x-3,y-3,x+3,y+3),fill=(255,197,54))
 im=im.transform(im.size,Image.Transform.AFFINE,(1,0,0,0,1/2.3,cy*(1-1/2.3)),resample=Image.Resampling.BICUBIC)
-bg=Image.new('RGBA',im.size,(137,145,82,255)); bg.alpha_composite(im); save(bg.convert('RGB'),'blossom')
-# Nigiri fish: colored striations follow the curved mesh, not a flat image prop.
-for name,base,stripe in [('salmon',(244,115,49),(255,204,142)),('tuna',(203,51,46),(239,102,88))]:
-    im=Image.new('RGB',(1024,512),base);d=ImageDraw.Draw(im)
-    for i in range(-12,24):
-        pts=[(i*82+j*.40+8*math.sin(j/100),j) for j in range(0,513,6)]
-        d.line(pts,fill=stripe,width=9 if name=='salmon' else 4)
-        d.line([(x+16,y) for x,y in pts],fill=tuple(min(255,c+8) for c in base),width=3)
+bg=Image.new('RGBA',im.size,(111,122,73,255));bd=ImageDraw.Draw(bg)
+for i in range(19500):
+    x=random.randrange(2048);y=random.randrange(1024);r=random.choice([1,1,1,2]);v=random.randint(-13,8)
+    bd.ellipse((x-r,y-r,x+r,y+r),fill=(111+v,122+v,73+v,255))
+bg.alpha_composite(im);save(bg.convert('RGB'),'blossom')
+# Fish muscle: irregular chevron fat lines, soft flesh variation and fine fibers.
+for name,base,stripe in [('salmon',(238,103,37),(255,203,143)),('tuna',(190,35,38),(234,92,86))]:
+    im=Image.new('RGB',(1024,512));px=im.load()
+    for y in range(512):
+        for x in range(1024):
+            variation=4*math.sin(x*.026+y*.009)+2*math.sin(x*.09-y*.07)+random.uniform(-2,2)
+            edge=1-.10*(abs(y-256)/256)**3
+            px[x,y]=tuple(int(max(0,min(255,(c+variation)*edge))) for c in base)
+    layer=Image.new('RGBA',im.size);d=ImageDraw.Draw(layer)
+    for i in range(-5,17):
+        pts=[]
+        for y in range(0,513,3):
+            # Muscle fibers follow a gently curved V across the back of the fillet.
+            x=i*86+abs(y-242)*.58+9*math.sin(y*.012+i*.4)
+            pts.append((x,y))
+        d.line(pts,fill=(*stripe,215 if name=='salmon' else 145),width=7 if name=='salmon' else 3)
+        for shift in [19,37,57]:
+            d.line([(x+shift,y) for x,y in pts],fill=(*stripe,26),width=1)
+    im=Image.alpha_composite(im.convert('RGBA'),layer.filter(ImageFilter.GaussianBlur(.55))).convert('RGB')
     save(im,name)
+# Fibrous nori: dark olive flakes, with restrained oily highlights.
+im=Image.new('RGB',(512,512),(24,33,17));d=ImageDraw.Draw(im)
+for i in range(15500):
+    x=random.randrange(512);y=random.randrange(512);v=random.randrange(15,56)
+    d.line((x,y,x+random.randrange(1,12),y+random.randrange(-4,5)),fill=(int(v*.76),v,int(v*.51)),width=1)
+save(im.filter(ImageFilter.GaussianBlur(.3)),'nori')
+# Omelet pores and slight cooked edges, kept subtle at the serving scale.
+im=Image.new('RGB',(512,512),(245,184,48));d=ImageDraw.Draw(im)
+for i in range(2300):
+    x=random.randrange(512);y=random.randrange(512);r=random.choice([1,1,2,3]);c=random.choice([(220,155,38),(255,202,69),(239,173,39)])
+    d.ellipse((x-r,y-r,x+r,y+r),fill=c)
+save(im.filter(ImageFilter.GaussianBlur(.5)),'egg')
 # Receipt: a curved mesh will use this paper texture.
 im=Image.new('RGB',(512,1024),(247,226,194));d=ImageDraw.Draw(im)
 d.text((62,280),'Resume',font=font(64,True),fill=(49,41,31))
@@ -92,4 +120,34 @@ for row in range(2):
         cx=col*280+(140 if row%2 else 0);cy=1050-row*130
         for r in [32,59,86,113,140,167]:d.arc((cx-r,cy-r,cx+r,cy+r),180,360,fill=(197,194,176),width=8)
 save(im,'curtain')
-print('Original textures written to',OUT)
+# Tileable tangent normals and scalar roughness: texture values represent material,
+# rather than painting lighting or highlights into the base color.
+rng=random.Random(918)
+def noise(size,blur):
+    data=bytes(rng.randrange(256) for _ in range(size*size))
+    return Image.frombytes('L',(size,size),data).filter(ImageFilter.GaussianBlur(blur))
+for name,rough,variation,strength in [('glaze',.27,.13,.22),('wood',.29,.12,.18),('cloth',.82,.10,.35),('fish',.26,.065,.075),('rice',.40,.08,.10),('nori',.47,.20,.38),('metal',.28,.12,.11),('plastic',.035,.016,.012)]:
+    size=512
+    height=noise(size,1.0 if name!='wood' else 2.0)
+    if name=='cloth':
+        hp=height.load()
+        for y in range(size):
+            for x in range(size):hp[x,y]=int(128+30*math.sin(x*math.pi/3)*math.sin(y*math.pi/3))
+    if name=='metal':
+        height=height.resize((32,512)).resize((512,512),Image.Resampling.BICUBIC)
+    if name=='wood':
+        height=Image.open(OUT/'wood.png').convert('L').resize((512,512))
+    if name=='nori':height=Image.open(OUT/'nori.png').convert('L')
+    hp=height.load();normal=Image.new('RGB',(size,size));np=normal.load()
+    for y in range(size):
+        for x in range(size):
+            dx=(hp[(x+1)%size,y]-hp[(x-1)%size,y])*strength
+            dy=(hp[x,(y+1)%size]-hp[x,(y-1)%size])*strength
+            n=math.sqrt(dx*dx+dy*dy+64*64)
+            np[x,y]=(int(127.5-dx/n*127),int(127.5-dy/n*127),int(127.5+64/n*127))
+    save(normal,name+'_normal')
+    coarse=noise(size,3);cp=coarse.load();rm=Image.new('L',(size,size));rp=rm.load()
+    for y in range(size):
+        for x in range(size):rp[x,y]=int(255*max(.01,min(1,rough+(cp[x,y]-128)/40*variation)))
+    save(rm,name+'_roughness')
+print('Original color, tangent normal and roughness textures written to',OUT)

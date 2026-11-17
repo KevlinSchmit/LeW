@@ -32,6 +32,34 @@ try {
   assert.ok(assets.meshes>100 && assets.vertices>10000,'Actual 3D geometry loaded');
   for(const name of ['TEAPOT','TEACUP','MENU','BELL','RESUME'])
     assert.ok(assets.names.some(n=>n.startsWith(name)),name+' is a separate named assembly');
+  // Find a visible plate surface by casting through the complete scene, so a
+  // hidden or occluded collection cannot pass this click-through check.
+  const stackTarget = await page.evaluate(()=>{
+    const app=window.__sushi, V=app.camera.position.constructor;
+    const points=[];
+    app.plateStack.traverse(mesh=>{
+      if(!mesh.isMesh)return;
+      mesh.geometry.computeBoundingBox();const b=mesh.geometry.boundingBox;
+      for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z])
+        points.push(new V(x,y,z).applyMatrix4(mesh.matrixWorld));
+    });
+    if(Math.max(...points.map(p=>p.z))>=-3.3)throw Error('Stack extends into the conveyor instead of behind it');
+    const projected=points.map(p=>p.project(app.camera));
+    const left=Math.max(8,(Math.min(...projected.map(p=>p.x))*.5+.5)*innerWidth);
+    const right=Math.min(innerWidth-8,(Math.max(...projected.map(p=>p.x))*.5+.5)*innerWidth);
+    const top=Math.max(100,(-Math.max(...projected.map(p=>p.y))*.5+.5)*innerHeight);
+    const bottom=Math.min(innerHeight-100,(-Math.min(...projected.map(p=>p.y))*.5+.5)*innerHeight);
+    for(let row=0;row<12;row++)for(let col=0;col<12;col++){
+      const x=left+(col+.5)/12*(right-left),y=top+(row+.5)/12*(bottom-top);
+      if(document.elementFromPoint(x,y)?.id==='scene' && app.pickAt(x,y)===app.plateStack)return {x,y};
+    }
+    return null;
+  });
+  assert.ok(stackTarget,'Plate stack has an unobstructed clickable surface');
+  await page.mouse.click(stackTarget.x,stackTarget.y);
+  assert.equal(await page.evaluate(()=>window.__sushi.plateStack.userData.selected),true,'Clicking the visible 3D stack selects it');
+  await page.getByRole('button',{name:'Select plate collection'}).click();
+  assert.equal(await page.evaluate(()=>window.__sushi.plateStack.userData.selected),false,'Accessible collection button toggles the same object');
   assert.equal(assets.moving,true);
   const x=await page.evaluate(()=>window.__sushi.plates[0].position.x);
   await page.waitForFunction(before=>window.__sushi.plates[0].position.x<before-.005,x);
@@ -60,6 +88,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}
