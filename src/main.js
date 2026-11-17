@@ -186,6 +186,15 @@ Promise.all([loadScene, createSushiChef()]).then(([gltf, chef]) => {
     if (child.name.startsWith('CHEF')) model.remove(child);
   }
   model.add(chef);
+  const floor = -1.25;
+  const riserHeight = chef.position.y - floor;
+  const riser = new THREE.Mesh(
+    new THREE.BoxGeometry(2.75, riserHeight, 1.65),
+    new THREE.MeshStandardMaterial({ name: 'Dark wood · chef riser', color: '#30251d', roughness: .9 }),
+  );
+  riser.name = 'Chef platform';
+  riser.position.set(chef.position.x, floor + riserHeight / 2, chef.position.z - .05);
+  model.add(riser);
   let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
     if (object.name.startsWith('SUSHI_') && object.isObject3D && !object.isMesh) plates.push(object);
