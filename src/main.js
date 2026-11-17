@@ -134,12 +134,16 @@ const finishMaterial = new THREE.ShaderMaterial({
         edge=max(edge,smoothstep(.04,.17,neighbor-distance));
       }
       float foreground=1.-smoothstep(27.,35.,distance);
-      // Richer painted colors reinforce the saturated amber izakaya light.
+      // Keep painted colors rich without amplifying the yellow-green cast.
       float luminance=dot(color,vec3(.2126,.7152,.0722));
-      color=max(mix(vec3(luminance),color,1.20),vec3(0.));
+      color=max(mix(vec3(luminance),color,1.10),vec3(0.));
       color=mix(color,vec3(.004,.003,.002),edge*foreground*.90);
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
+      // Orange-brown display grade; preserve luminance and the approved light pools.
+      float displayLuma=dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722));
+      vec3 orangeBrown=gl_FragColor.rgb*vec3(1.08,.82,.72);
+      gl_FragColor.rgb=orangeBrown*(displayLuma/max(dot(orangeBrown,vec3(.2126,.7152,.0722)),.00001));
       #include <colorspace_fragment>
     }`,
   depthTest: false, depthWrite: false,
