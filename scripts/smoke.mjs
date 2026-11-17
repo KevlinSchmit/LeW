@@ -42,16 +42,18 @@ try {
       object.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();const b=o.geometry.boundingBox,V=window.__sushi.camera.position.constructor;
         for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z])points.push(new V(x,y,z).applyMatrix4(o.matrixWorld));
       }});
-      return {width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),front:Math.max(...points.map(p=>p.z))};
+      return {width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),front:Math.max(...points.map(p=>p.z)),top:Math.max(...points.map(p=>p.y))};
     };
-    const textures=[],glass=[];let receipt=false,lcd=false;
+    const textures=[],glass=[],palette=new Set();let receipt=false,lcd=false;
+    const columns=window.__sushi.plateStack.children.filter(o=>o.name.startsWith('Plate_column')).map(box);
     model.traverse(o=>{if(!o.isMesh)return;
       if(/receipt|resume|paper slot/i.test(o.name))receipt=true;
       if(o.material.name.includes('olive LCD'))lcd=true;
+      palette.add(o.material.name);
       if(o.material.map)textures.push({name:o.material.name,width:o.material.map.image.width,height:o.material.map.image.height});
       if(/Bottle glass|Clear molded/.test(o.material.name))glass.push(o.material.name);
     });
-    return {menu:box(root('MENU')),table:box(root('RESTAURANT')),receipt,lcd,textures,glass:[...new Set(glass)]};
+    return {menu:box(root('MENU')),table:box(root('RESTAURANT')),receipt,lcd,textures,glass:[...new Set(glass)],columns,palette:[...palette],camera:{fov:window.__sushi.camera.fov,position:window.__sushi.camera.position.toArray(),target:window.__sushi.controls.target.toArray()}};
   });
   assert.ok(assets.vertices<250000,'Simple game-asset geometry stays below 250k scene vertices');
   assert.ok(artDirection.menu.width<3.8,'Menu is smaller than the original oversized book');
@@ -61,6 +63,12 @@ try {
   assert.equal(artDirection.glass.length,2,'Glass vessels and PET covers use distinct materials');
   assert.ok(artDirection.textures.every(t=>t.width<=512 && t.height<=512),'Painted textures retain deliberate low texel density');
   assert.ok(artDirection.textures.some(t=>t.name.includes('sakura')),'Wraparound painted tea ceramics loaded');
+  assert.equal(artDirection.camera.fov,38,'Restore the original seated composition');
+  assert.deepEqual(artDirection.camera.position,[0,8,17.2],'Restore original camera distance and height');
+  assert.deepEqual(artDirection.camera.target,[0,2.25,-1],'Restore original view target');
+  assert.equal(artDirection.columns.length,2,'Both rear plate columns remain independent');
+  assert.ok(artDirection.columns.every(c=>c.top>5.3 && c.front<-3.3),'Both plate stacks rise above the sushi while remaining behind the conveyor');
+  assert.ok(artDirection.palette.includes('Mustard yellow lacquer'),'Yellow joins the plate palette');
   // Find a visible plate surface by casting through the complete scene, so a
   // hidden or occluded collection cannot pass this click-through check.
   const stackTarget = await page.evaluate(()=>{
@@ -117,6 +125,6 @@ try {
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false,'Reduced motion starts with conveyor paused');
   assert.equal(network.length,0,'Standalone HTML uses no network requests');
   assert.deepEqual(errors,[],'No JavaScript or WebGL errors');
-  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET.');
+  console.log('PASS: visible 3D plate stack selection, offline standalone HTML, 3D assemblies, moving conveyor, pause, keyboard, camera controls, mobile layout, reduced motion, painted low-poly assets, compact menu, extended table, receipt-free POS, distinct glass/PET, original seated composition, two raised plate columns, yellow palette.');
   console.log(JSON.stringify(assets,null,2));
 } finally {await browser.close();}

@@ -24,7 +24,7 @@ npm run build
 ## Models and source
 
 - `blender/sushi-bar.blend` — native editable scene, with textures packed into the file and a matching camera and light rig.
-- `blender/build_scene.py` — reproducible original geometry for the restaurant, conveyor, teapot, cup, menu, chopsticks, bell, printer, condiment jars and sushi. Every component is named and independently editable in the native scene.
+- `blender/build_scene.py` — reproducible original geometry for the restaurant, conveyor, teapot, cup, menu, chopsticks, bell, POS terminal, condiment jars and sushi. Every component is named and independently editable in the native scene.
 - `blender/optimize_export.py` — merges the web copy by material **within** each independent assembly; the Blender source stays separated.
 - `scripts/textures.py` / `blender/textures/` — deterministic original wood, blossom, seigaiha, fish, signage and paper artwork.
 - `public/models/objects/` — 12 individual GLB prop files, exported at local origin.
@@ -47,7 +47,7 @@ The supplied reference informs the **painted game-asset style**, rather than rep
 
 The counter extends toward the bottom of the view. The menu is a smaller stitched book. The right-hand prop is now an ivory wedge-shaped POS terminal with a tilted illustrated LCD, tactile keypad, side card slot and ventilation; there is no receipt or paper strip. Its individual asset is `public/models/objects/pos-terminal.glb`.
 
-The web rig uses a clear directional key and quiet ambient fill, neutral tone mapping, and restrained reflection cards. Selective dark occlusion contours and authored ink trim support the illustrative finish. Glass vessels use a thicker green-edged finish; PET sushi covers have separate thin-shell transparency, rolled lips and narrow painted glints. Food stays sharp through the covers. Depth-of-field and broad cinematic softbox reflections are removed. The native `.blend` packs the same authored textures; web-specific ink and transparency tuning live in `src/main.js` and `src/materials.js`.
+The original seated camera is restored (38° vertical field of view, position 0 / 8 / 17.2); the scene is not scaled down. Warm light enters from the left into a dim tavern, with minimal room fill and restrained, narrow specular glints. Stronger near-black contours and authored ink trim support the illustrative finish. A gentle 10% saturation reduction unifies the palette. Both rear plate columns sit on a raised service ledge; mustard yellow joins the ceramic and lacquer colors. The sauce dish and chopstick dish are rebuilt with planar cut corners, visible chamfers and sloping inset basins rather than rounded box rims. Glass vessels use a thicker green-edged finish; PET sushi covers have separate thin-shell transparency, rolled lips and narrow painted glints. Food stays sharp through the covers. Depth-of-field and broad cinematic softbox reflections are removed. The native `.blend` packs the same authored textures; web-specific ink and transparency tuning live in `src/main.js` and `src/materials.js`.
 
 On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 9 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 115,000 vertices, down from approximately 418,000.
 
@@ -58,4 +58,4 @@ npm run build
 npm test
 ```
 
-The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It also checks the compact menu, extended counter, receipt-free POS, distinct glass/PET materials, vertex budget and painted texture sizes. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.
+The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It also checks the compact menu, extended counter, receipt-free POS, distinct glass/PET materials, vertex budget, painted texture sizes, the restored camera, two raised plate columns and yellow plate colors. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.

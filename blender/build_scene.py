@@ -40,6 +40,7 @@ lidPaint=mat('Painted celadon lid · floral medallion',(.43,.53,.32),rough=.65,t
 red=mat('Vermilion lacquer',(.57,.035,.019),rough=.24,surface='glaze')
 navy=mat('Indigo lacquer',(.10,.16,.27),rough=.28,surface='glaze')
 green=mat('Olive lacquer',(.35,.38,.075),rough=.25,surface='glaze')
+yellow=mat('Mustard yellow lacquer',(.64,.45,.12),rough=.8,surface='glaze')
 rice=mat('Pearl rice',(.78,.71,.56),rough=.82,texture='rice',surface='rice')
 nori=mat('Nori seaweed',(.032,.047,.025),rough=.47,texture='nori',surface='nori')
 omelet=mat('Tamagoyaki · golden egg',(.97,.63,.045),rough=.33,texture='egg',surface='rice')
@@ -62,6 +63,9 @@ curtain=mat('Indigo noren fabric',(.07,.1,.19),rough=.9,texture='curtain')
 lightmat=mat('Washi lantern glow',(1,.55,.19),rough=.7,emission=2.2)
 blueglass=mat('Night beyond the shoji',(.026,.058,.09),rough=.5,emission=.18)
 plaster=mat('Warm lime plaster',(.068,.032,.012),rough=.9,texture='plaster')
+
+dishSide=mat('Porcelain · cut side faces',(.46,.43,.35),rough=.95)
+dishRim=mat('Porcelain · flat chamfer',(.74,.70,.57),rough=.95)
 
 current=None
 
@@ -125,6 +129,27 @@ def path(name,points,radius,material,parent=None,cyclic=False):
 
 def plane(name,verts,material,parent=None,uv=None):return mesh(name,verts,[(0,1,2,3)],material,parent,uv or [(0,0),(1,0),(1,1),(0,1)])
 
+def angular_dish(name,width,depth,height,parent,loc=(0,0,0)):
+    """Closed octagonal tray: planar cut corners, flat rim and sloping basin."""
+    def ring(w,d,z):
+        c=min(w,d)*.15
+        return [(loc[0]+x,loc[1]+y,loc[2]+z) for x,y in [(-w+c,-d),(w-c,-d),(w,-d+c),(w,d-c),(w-c,d),(-w+c,d),(-w,d-c),(-w,-d+c)]]
+    w=width/2;d=depth/2
+    rings=[ring(w*.84,d*.84,0),ring(w,d,height*.64),ring(w,d,height),ring(w-.07,d-.07,height),ring(w-.17,d-.17,height*.32)]
+    vertices=[v for r in rings for v in r];faces=[tuple(reversed(range(8)))]
+    for j in range(4):
+        for i in range(8):faces.append((j*8+i,j*8+(i+1)%8,(j+1)*8+(i+1)%8,(j+1)*8+i))
+    faces.append(tuple(range(32,40)))
+    o=mesh(name,vertices,faces,cream,parent)
+    o.data.materials.append(dishSide);o.data.materials.append(dishRim)
+    for f in o.data.polygons:
+        f.use_smooth=False
+        f.material_index=1 if f.index<=16 else 2 if f.index<=24 else 0
+    # Authored ink seams expose the manufactured planes even under dim light.
+    path(name+' · outer ink edge',rings[2],.009,ink,parent,True)
+    path(name+' · basin ink edge',rings[4],.007,ink,parent,True)
+    return o
+
 def join(objects,name):
     bpy.ops.object.select_all(action='DESELECT')
     for o in objects:o.select_set(True)
@@ -184,13 +209,14 @@ for x in [-8,-3,2,6,10]:
     cylinder('Distant tea cup',(x+1,7.2,1.58),.22,.5,cream,room)
 
 # Stacks at left, each dish is its own mesh.
-stack=group('DISHES · two lacquer stacks',(0,4.2,0))
-box('Plate stack rear service ledge',(-10.2,6.0,1.64),(5.5,4.3,.24),wood,room,b=.08)
+stack=group('DISHES · two lacquer stacks',(0,4.2,.75))
+box('Plate stack rear service ledge',(-10.2,6.0,2.39),(5.5,4.3,.24),wood,room,b=.08)
 plate_profile=[(0,0),(.68,0),(.78,.06),(.95,.15),(1.0,.23),(1.0,.29),(.95,.31),(.86,.22),(.70,.14),(0,.14)]
 for col,(x,y,count,r) in enumerate([(-10.3,1.0,15,1.6),(-8.6,3.0,10,1.5)]):
+    column=group('Plate column %d'%col,(x,y,1.8 if col==0 else 2.15));column.parent=stack
     for i in range(count):
-        m=[cream,navy,red,green,cream][i%5]
-        o=lathe('Stack %d · dish %02d'%(col,i),[(a*r,b*.65) for a,b in plate_profile],m,stack,loc=(x,y,1.8+i*.25))
+        m=[cream,navy,yellow,red,green][i%5]
+        o=lathe('Stack %d · dish %02d'%(col,i),[(a*r,b*.65) for a,b in plate_profile],m,column,loc=(0,0,i*.25))
 
 # Tea pot: hollow, wheel-thrown body, separate lid, spout, handle and wicker wraps.
 g=group('TEAPOT · sakura celadon',(-7.7,-2.55,.16))
@@ -243,9 +269,10 @@ cylinder('Tea cup wooden coaster',(-4.9,-4.0,.09),.95,.18,edgewood)
 torus('Tea coaster lip',(-4.9,-4,.18),.84,.026,darkwood)
 # Sauce dish left of the book.
 g=group('SAUCE DISH · porcelain',(-3.95,-1.35,.09))
-box('Dish outer porcelain',(0,0,.17),(1.3,1.02,.30),cream,g,b=.15)
-box('Soy sauce pool',(0,-.02,.335),(.98,.70,.014),soy,g,b=.10)
-for loc,sc in [((0,-.46,.36),(1.29,.16,.16)),((0,.46,.36),(1.29,.16,.16)),((-.57,0,.36),(.16,.93,.16)),((.57,0,.36),(.16,.93,.16))]:box('Dish thick porcelain rim',loc,sc,cream,g,b=.06)
+angular_dish('Soy dish · cut porcelain tray',1.42,1.10,.33,g)
+# Flat clipped-corner liquid surface inside the distinctly faceted basin.
+v=[(-.44,-.34,.145),(.44,-.34,.145),(.53,-.25,.145),(.53,.25,.145),(.44,.34,.145),(-.44,.34,.145),(-.53,.25,.145),(-.53,-.25,.145)]
+mesh('Soy sauce pool',v,[tuple(range(8))],soy,g)
 
 # Indigo bound menu with true paper block, string loops and textured top cover.
 g=group('MENU · indigo portfolio book',(-.5,-3.1,.10))
@@ -263,8 +290,8 @@ for i in range(5):
     sphere('Menu binding knot',(-2.11,y,.45),(.067,.061,.05),edgewood,g)
 # Chopsticks on a blue striped ceramic rest.
 g=group('CHOPSTICKS · bamboo and porcelain',(-.1,-5.65,.12))
-box('Chopstick porcelain rest',(-2.10,0,.07),(.64,.95,.23),cream,g,b=.09)
-for x in [-2.23,-2.11]:box('Rest indigo inlay',(x,0,.19),(.045,.89,.008),navy,g,b=.006)
+angular_dish('Chopstick dish · cut porcelain',.82,1.16,.20,g,loc=(-2.10,0,0))
+for x in [-2.23,-2.11]:box('Rest indigo inlay',(x,0,.069),(.045,.78,.008),navy,g,b=0)
 for y in [-.14,.13]:
     # subtly tapered rectangular sticks, pointing toward left
     verts=[(-2.8,y-.038,.24),(-2.8,y+.038,.24),(-2.8,y+.038,.31),(-2.8,y-.038,.31),(3.0,y-.075,.22),(3.0,y+.075,.22),(3.0,y+.075,.37),(3.0,y-.075,.37)]
@@ -328,7 +355,7 @@ plane('Soy bottle hard glass glint',[(-.34,-.39,.35),(-.30,-.42,.35),(-.19,-.27,
 plane('Ginger jar hard glass glint',[(.61,-.82,.21),(.65,-.86,.21),(.65,-.86,1.12),(.61,-.82,1.12)],highlight,g)
 
 # Four named traveling plate assemblies. Local coordinates allow independent animation.
-for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon',2.18,navy),('tuna',6.55,green)]):
+for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon',2.18,navy),('tuna',6.55,yellow)]):
     g=group('SUSHI_'+kind,(x,2.05,1.79))
     lathe(kind+' · lacquer plate',[(0,0),(.75,0),(1.45,.07),(1.88,.20),(1.92,.26),(1.89,.32),(1.76,.29),(1.54,.22),(0,.21)],pm,g,n=32)
     torus(kind+' · plate rim',(0,0,.28),1.85,.035,pm,g)
@@ -400,11 +427,11 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
             so=o.modifiers.new('Thick hand-cut fish','SOLIDIFY');so.thickness=.19;bevel(o,.045,4)
 
 # Camera for the editable native scene, matching Three.js startup view.
-bpy.ops.object.camera_add(location=(0,-19.8,10.8));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=27;bpy.context.scene.camera=cam
+bpy.ops.object.camera_add(location=(0,-17.2,8.0));cam=bpy.context.object;cam.name='CAMERA · seated at the sushi bar';direction=Vector((0,1.0,2.25))-cam.location;cam.rotation_euler=direction.to_track_quat('-Z','Y').to_euler();cam.data.type='PERSP';cam.data.lens=30;bpy.context.scene.camera=cam
 # Game-style native rig: firm sun shadow, quiet ambient world, no softbox studio.
-bpy.ops.object.light_add(type='SUN',location=(-7,-6,12));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=2.1;o.data.angle=math.radians(2);o.data.color=(1,.94,.85);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
-bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · quiet cool fill';o.data.energy=450;o.data.size=3;o.data.color=(.80,.87,.84);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
-world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.65,.66,.59,1);world.node_tree.nodes['Background'].inputs[1].default_value=.6
+bpy.ops.object.light_add(type='SUN',location=(-9,-6,7));o=bpy.context.object;o.name='LIGHT · directional game key';o.data.energy=3.2;o.data.angle=math.radians(2);o.data.color=(1,.60,.29);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+bpy.ops.object.light_add(type='AREA',location=(8,-2,7));o=bpy.context.object;o.name='LIGHT · quiet cool fill';o.data.energy=70;o.data.size=3;o.data.color=(.80,.87,.84);o.rotation_euler=(Vector((0,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
+world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.19,.15,.12,1);world.node_tree.nodes['Background'].inputs[1].default_value=.2
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=24;scene.view_settings.view_transform='Standard';scene.render.resolution_x=1680;scene.render.resolution_y=960;scene.render.resolution_percentage=100
 # Native source packs all textures; web export omits cameras and studio lights.
 bpy.ops.file.pack_all()

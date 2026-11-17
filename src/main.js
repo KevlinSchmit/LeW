@@ -25,15 +25,15 @@ renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 renderer.transmissionResolutionScale = 1;
 renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = .94;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9b9b7e');
-scene.fog = new THREE.FogExp2('#91947b', .009);
-const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 90);
+scene.background = new THREE.Color('#231c17');
+scene.fog = new THREE.FogExp2('#30231a', .018);
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 90);
 // Blender is Z-up; glTF gives us Y-up. Visitor sits on the positive Z side.
-const home = new THREE.Vector3(0, 10.8, 19.8);
-const target = new THREE.Vector3(0, 1.8, -.3);
+const home = new THREE.Vector3(0, 8.0, 17.2);
+const target = new THREE.Vector3(0, 2.25, -1.0);
 camera.position.copy(home);
 camera.lookAt(target);
 const controls = new OrbitControls(camera, canvas);
@@ -50,8 +50,8 @@ controls.maxAzimuthAngle = .22;
 controls.rotateSpeed = .35;
 controls.zoomSpeed = .45;
 scene.environment = makeReflectionStudio(renderer);
-scene.environmentIntensity = .35;
-scene.add(new THREE.HemisphereLight(0xfff5e5, 0x888b83, 1.8));
+scene.environmentIntensity = .16;
+scene.add(new THREE.HemisphereLight(0xc6b6a1, 0x26211c, .42));
 function directionalLight(color, power, position, aim, shadow = false) {
   const l = new THREE.DirectionalLight(color, power);
   l.position.set(...position);
@@ -67,9 +67,11 @@ function directionalLight(color, power, position, aim, shadow = false) {
   scene.add(l, l.target);
   return l;
 }
-// One clear key with a quiet cool fill gives game-engine shaped shadows.
-directionalLight(0xfff0d9, 2.1, [-7, 12, 6], [0, 0, 0], true);
-directionalLight(0xc4d1c1, .5, [8, 7, 0], [0, 1, 0]);
+// Warm light enters from screen-left; the room stays dim around the counter.
+const counterKey=directionalLight(0xffb974, 3.2, [-9, 7, 6], [0, 1, 0], true);
+counterKey.name='Warm left counter key';
+const roomFill=directionalLight(0xb9c1cc, .16, [8, 6, -4], [0, 1, 0]);
+roomFill.name='Dim tavern fill';
 // No depth-of-field: every painted asset should remain readable.
 const renderSize = new THREE.Vector2();
 renderer.getDrawingBufferSize(renderSize);
@@ -99,13 +101,17 @@ const finishMaterial = new THREE.ShaderMaterial({
       vec3 color=texture2D(image,vUv).rgb;
       // Broken ink contours at occlusion boundaries; not every surface is outlined.
       float edge=0.;
-      for(int i=0;i<4;i++){
-        vec2 direction=i==0?vec2(1.,0.):i==1?vec2(-1.,0.):i==2?vec2(0.,1.):vec2(0.,-1.);
-        float neighbor=-perspectiveDepthToViewZ(texture2D(depth,vUv+direction*pixel*.85).x,cameraNear,cameraFar);
-        edge=max(edge,smoothstep(.06,.24,neighbor-distance));
+      for(int i=0;i<8;i++){
+        float angle=float(i)*.785398;
+        vec2 direction=vec2(cos(angle),sin(angle));
+        float neighbor=-perspectiveDepthToViewZ(texture2D(depth,vUv+direction*pixel*1.25).x,cameraNear,cameraFar);
+        edge=max(edge,smoothstep(.04,.17,neighbor-distance));
       }
       float foreground=1.-smoothstep(27.,35.,distance);
-      color=mix(color,color*.30,edge*foreground*.62);
+      // A small global saturation reduction keeps all painted colors in one palette.
+      float luminance=dot(color,vec3(.2126,.7152,.0722));
+      color=mix(vec3(luminance),color,.90);
+      color=mix(color,vec3(.004,.003,.002),edge*foreground*.90);
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -250,7 +256,7 @@ canvas.addEventListener('pointermove',(event) => {
   pointer.set(event.clientX/innerWidth*2-1, -(event.clientY/innerHeight)*2+1);
 });
 const stackButton=document.querySelector('#plate-stack');
-const stackAnchor=new THREE.Vector3(-10.25,5.95,-5.2);
+const stackAnchor=new THREE.Vector3(-10.25,6.80,-5.2);
 const stackScreen=new THREE.Vector3();
 function updateStackHotspot(){
   if(!plateStack || stackButton.matches(':hover,:focus-visible'))return;
@@ -290,7 +296,7 @@ window.addEventListener('keydown',(event) => {
 function resize() {
   camera.aspect = innerWidth/innerHeight;
   // Portrait retains the entire counter, rather than silently cropping its objects.
-  camera.fov = innerWidth/innerHeight < 1 ? 69 : 42;
+  camera.fov = innerWidth/innerHeight < 1 ? 69 : 38;
   camera.position.copy(home);
   if (innerWidth/innerHeight < 1) camera.position.z = 26;
   camera.updateProjectionMatrix();
