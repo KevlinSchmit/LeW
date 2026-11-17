@@ -72,8 +72,8 @@ const counterKey=directionalLight(0xffb974, 3.2, [-9, 7, 6], [0, 1, 0], true);
 counterKey.name='Warm left counter key';
 const roomFill=directionalLight(0xb9c1cc, .16, [8, 6, -4], [0, 1, 0]);
 roomFill.name='Dim tavern fill';
-// A higher amber ceiling source spreads a restrained pool across the central counter.
-const centerTopLight=new THREE.SpotLight(0xffb568,300,32,.47,.70,2);
+// A higher golden-orange ceiling source warms the central counter.
+const centerTopLight=new THREE.SpotLight(0xff9c32,420,32,.47,.70,2);
 centerTopLight.name='Central warm yellow top light';
 centerTopLight.position.set(0,12.75,-.65);
 centerTopLight.target.position.set(0,.2,-.15);
@@ -121,9 +121,9 @@ const finishMaterial = new THREE.ShaderMaterial({
         edge=max(edge,smoothstep(.04,.17,neighbor-distance));
       }
       float foreground=1.-smoothstep(27.,35.,distance);
-      // A small global saturation reduction keeps all painted colors in one palette.
+      // Richer painted colors reinforce the saturated amber izakaya light.
       float luminance=dot(color,vec3(.2126,.7152,.0722));
-      color=mix(vec3(luminance),color,.90);
+      color=max(mix(vec3(luminance),color,1.20),vec3(0.));
       color=mix(color,vec3(.004,.003,.002),edge*foreground*.90);
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
