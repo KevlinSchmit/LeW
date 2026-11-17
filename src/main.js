@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic, outlineChef } from './materials.js';
-import { createSushiChef } from './characters/sushi-chef.js';
+import { createSushiChef, frameSushiChef } from './characters/sushi-chef.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -162,6 +162,7 @@ const beltTiles = [];
 const pickables = [];
 const stackMeshes = [];
 let plateStack;
+let chefForFraming;
 let loaded = false;
 let motion = !reducedMotion;
 let elapsed = 0;
@@ -185,6 +186,8 @@ Promise.all([loadScene, createSushiChef()]).then(([gltf, chef]) => {
   for (const child of [...model.children]) {
     if (child.name.startsWith('CHEF')) model.remove(child);
   }
+  chefForFraming = chef;
+  frameSushiChef(chef, camera);
   model.add(chef);
   let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
@@ -264,6 +267,7 @@ function resetView() {
   camera.position.copy(home);
   if (camera.aspect < 1) camera.position.z = 26;
   controls.target.copy(target); camera.lookAt(target);
+  if (chefForFraming) frameSushiChef(chefForFraming, camera);
   document.querySelector('#look').setAttribute('aria-pressed','false');
   document.querySelector('#look span').textContent = 'Look around';
   canvas.style.cursor = 'default';
@@ -348,6 +352,7 @@ function resize() {
   sceneTarget.setSize(renderSize.x,renderSize.y);
   finishMaterial.uniforms.pixel.value.set(1/renderSize.x,1/renderSize.y);
   camera.lookAt(target);
+  if (chefForFraming) frameSushiChef(chefForFraming, camera);
 }
 window.addEventListener('resize',resize);
 resize();
