@@ -29,7 +29,7 @@ npm run build
 - `scripts/textures.py` / `blender/textures/` — deterministic original wood, blossom, seigaiha, fish, signage and paper artwork.
 - `public/models/objects/` — 13 individual GLB assets, exported at local origin.
 - `public/models/sushi-bar.glb` — portable Blender scene. `SUSHI_roe`, `SUSHI_egg`, `SUSHI_salmon` and `SUSHI_tuna` are separate animation roots. `TEAPOT`, `TEACUP`, `MENU`, `BELL` and `POS` are separate scene roots. The embedded legacy blue `CHEF` is removed at load time and replaced by `src/characters/sushi-chef.js`.
-- `src/characters/sushi-chef.js` — complete procedural Three.js character, including editable body geometry, costume, facial features and seeded canvas textures. No Blender regeneration or external image requests are needed to edit this character.
+- `src/characters/sushi-chef.js` — scene adapter for the procedural Three.js chef, including placement and embedded texture loading. No Blender regeneration or external image requests are needed to edit this character.
 
 To regenerate with Blender 4.3+ and Python 3 / Pillow:
 
@@ -52,15 +52,6 @@ The original seated camera is restored (38° vertical field of view, position 0 
 
 On narrow portrait screens the scene widens its field of view; landscape gives the intended composition. A WebGL 2 capable browser and hardware acceleration are recommended. The standalone HTML is approximately 9 MB uncompressed, down from approximately 26 MB. The rendered scene including loop assemblies has approximately 111,000 vertices, down from approximately 418,000.
 
-The static sushi chef now follows the white-uniform character reference: a low cylindrical cloth hat, short-sleeved cross-collar jacket, vertical 寿司 chest embroidery, wrapped waist sash with hanging ties, long apron, white trousers and black work shoes. His adult face includes a modeled nose, ears, narrow eyes, heavy brows and dark sideburns. `createSushiChef()` constructs the complete standing figure with Three.js geometry and deterministic 256px canvas maps; the embroidered characters use vector strokes, so the standalone HTML requires no fonts or downloaded textures.
+The scene uses the reference-reconstructed chef with squared shoulders, the 寿司 chest marking, and matching front and rear fabric detail. The model is built in `src/characters/createChefModel.ts` from profiles in `chef-shape.ts`. The two texture crops under `src/characters/textures` are embedded in the standalone build.
 
-He stands at `(0, -1.25, -10.6)`, scaled to `0.73`, behind the conveyor and both rear plate columns. The existing restaurant camera and lighting stay in place: the whole hat and head fit in the frame, the chest is unobstructed, and the counter occludes the legs. Both desktop and portrait framing are covered by the offline smoke test, including actual raycast visibility. There is no rig, keyframed animation or character update loop. Edit `src/characters/sushi-chef.js` to change proportions, costume or placement, then run `npm run build` to refresh the downloadable preview. `blender/build_chef.py`, `scripts/chef_textures.py` and `public/models/objects/sushi-chef.glb` retain the legacy blue Blender character as source history; they are not the displayed chef.
-
-## Validation
-
-```sh
-npm run build
-npm test
-```
-
-The Playwright smoke test opens the actual standalone HTML offline, checks named 3D assemblies, verifies visible plate-stack picking and selection, conveyor movement and pause, keyboard and camera controls, portrait layout, reduced motion and browser errors. It also checks the compact menu, extended counter, receipt-free POS, distinct glass/PET materials, vertex budget, painted texture sizes, the restored camera, two raised plate columns, yellow plate colors, the focused overhead light, removed background fixtures, and actual shadow draws on consecutive moving frames. It uses system Chromium at `/usr/bin/chromium`; override with `CHROMIUM_PATH` when needed. `node scripts/capture.mjs` generates the desktop screenshot in `artifacts/`.
+The chef stands at `(0, -1.25, -10.6)` behind the conveyor. The scene adapter in `src/characters/sushi-chef.js` matches the existing standing height and adds the lighting needed in the restaurant. Run `npm run build` to generate the updated offline preview.

@@ -175,14 +175,16 @@ const interactableNames = new Map([
   ['POS', 'Counter POS terminal'], ['SUSHI_', 'Fresh from the conveyor'],
 ]);
 const loader = new GLTFLoader();
-loader.load(modelURL, (gltf) => {
+const loadScene = loader.loadAsync(modelURL, (progress) => {
+  if (progress.total) loading.querySelector('i').style.width = `${Math.min(95,progress.loaded/progress.total*95)}%`;
+});
+Promise.all([loadScene, createSushiChef()]).then(([gltf, chef]) => {
   const model = gltf.scene;
   model.name = 'Sushi Counter — original Blender model';
   // Replace the embedded indigo character with an editable procedural chef.
   for (const child of [...model.children]) {
     if (child.name.startsWith('CHEF')) model.remove(child);
   }
-  const chef = createSushiChef();
   model.add(chef);
   let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
@@ -221,7 +223,7 @@ loader.load(modelURL, (gltf) => {
       }
     }
   });
-  outlineChef(chef);
+  outlineChef(chef, .006);
   plates.forEach((plate,index)=>{plate.position.x=-6.65+index*5.;plate.scale.setScalar(1.13);});
   // Two additional assemblies complete the loop outside the seated view.
   for (const [source,x] of [[plates[1],-11.65],[plates[0],13.35]]) {
@@ -242,9 +244,7 @@ loader.load(modelURL, (gltf) => {
   window.__sushi = { scene, camera, renderer, plates, controls, model, plateStack, stackMeshes, pickAt, get motion() { return motion; } };
   loading.querySelector('i').style.width = '100%';
   requestAnimationFrame(() => { renderScene(); loading.classList.add('done'); });
-}, (progress) => {
-  if (progress.total) loading.querySelector('i').style.width = `${Math.min(95,progress.loaded/progress.total*95)}%`;
-}, (error) => {
+}).catch((error) => {
   console.error('Unable to load the sushi scene',error);
   loading.hidden = true;
   document.querySelector('#error').hidden = false;

@@ -64,13 +64,13 @@ try {
     return {triangles,skinned,paints:paints.size,position:chef.position.toArray(),landmarks,names,materials:[...materials],
       procedural:chef.userData.procedural,chefCount:app.model.children.filter(o=>o.name.startsWith('CHEF')).length};
   });
-  assert.ok(chefInfo.triangles<6000,'Complete procedural chef stays below 6k triangles');
+  assert.ok(chefInfo.triangles <= 18000,'Reference chef stays within an 18k triangle budget');
   assert.ok(chefInfo.paints>=5,'Separate skin, cotton, apron, cap and hair maps loaded');
   assert.equal(chefInfo.procedural,true,'Character is built with Three.js');
   assert.equal(chefInfo.chefCount,1,'The original indigo chef is replaced, not overlaid');
   assert.ok(!chefInfo.materials.some(n=>/indigo|tenugui|headband/i.test(n)),'No original blue costume remains');
-  for(const detail of ['low cylindrical cloth hat','wrap jacket','long apron','front sash knot','寿司 chest embroidery','modeled nose'])
-    assert.ok(chefInfo.names.includes('Chef '+detail),detail+' matches the reference');
+  for(const detail of ['cap','torso','apron','knot','head','sleeve-l','sleeve-r'])
+    assert.ok(chefInfo.names.includes(detail+' surface'),detail+' matches the reference');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
   assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor and rear plate stacks');
   assert.ok(chefInfo.landmarks.hat.y>.04 && chefInfo.landmarks.hat.y<.25,'Entire hat fits beneath the upper frame edge');
