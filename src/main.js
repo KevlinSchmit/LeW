@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { makeReflectionStudio, refineSurface, makePlastic } from './materials.js';
+import { makeReflectionStudio, makeWoodReflections, refineSurface, makePlastic } from './materials.js';
 import modelURL from 'virtual:sushi-model';
 import './style.css';
 
@@ -177,7 +177,7 @@ const loader = new GLTFLoader();
 loader.load(modelURL, (gltf) => {
   const model = gltf.scene;
   model.name = 'Sushi Counter — original Blender model';
-  let glassMaterial, bottleMaterial;
+  let glassMaterial, bottleMaterial, woodEnvironment;
   model.traverse((object) => {
     if (object.name.startsWith('SUSHI_') && object.isObject3D && !object.isMesh) plates.push(object);
     if (object.name.startsWith('Belt_tile')) beltTiles.push(object);
@@ -188,6 +188,10 @@ loader.load(modelURL, (gltf) => {
     for (const material of materials) {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       refineSurface(material);
+      if(material.name.includes('Honey oak')){
+        woodEnvironment ??= makeWoodReflections(renderer);
+        material.envMap=woodEnvironment;
+      }
       if (material.name.startsWith('BOTTLE GLASS')) {
         if(!bottleMaterial){bottleMaterial=makePlastic(material,true);bottleMaterial.envMap=scene.environment;}
         object.material=bottleMaterial;object.castShadow=false;object.receiveShadow=false;object.renderOrder=2;

@@ -19,12 +19,12 @@ def mat(name,color,metal=0,rough=.4,texture=None,emission=0,surface=None):
         tex=m.node_tree.nodes.new('ShaderNodeTexImage');tex.image=bpy.data.images.load(str(TEX/(texture+'.png')),check_existing=True);m.node_tree.links.new(tex.outputs['Color'],bs.inputs['Base Color'])
     if surface:
         norm=m.node_tree.nodes.new('ShaderNodeTexImage');norm.image=bpy.data.images.load(str(TEX/(surface+'_normal.png')),check_existing=True);norm.image.colorspace_settings.name='Non-Color'
-        normal=m.node_tree.nodes.new('ShaderNodeNormalMap');normal.inputs['Strength'].default_value=1.0
+        normal=m.node_tree.nodes.new('ShaderNodeNormalMap');normal.inputs['Strength'].default_value=.18 if surface=='wood' else 1.0
         m.node_tree.links.new(norm.outputs['Color'],normal.inputs['Color']);m.node_tree.links.new(normal.outputs['Normal'],bs.inputs['Normal'])
         rm=m.node_tree.nodes.new('ShaderNodeTexImage');rm.image=bpy.data.images.load(str(TEX/(surface+'_roughness.png')),check_existing=True);rm.image.colorspace_settings.name='Non-Color'
         m.node_tree.links.new(rm.outputs['Color'],bs.inputs['Roughness'])
     if surface in ['glaze','wood','fish']:
-        bs.inputs['Coat Weight'].default_value=.08;bs.inputs['Coat Roughness'].default_value=.18
+        bs.inputs['Coat Weight'].default_value=.85 if surface=='wood' else .08;bs.inputs['Coat Roughness'].default_value=.055 if surface=='wood' else .18
     if emission:bs.inputs['Emission Color'].default_value=(*color,1);bs.inputs['Emission Strength'].default_value=emission
     return m
 wood=mat('Honey oak · fine grain',(.48,.23,.08),rough=.29,texture='wood',surface='wood')
