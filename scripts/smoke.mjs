@@ -72,11 +72,10 @@ try {
   for(const detail of ['cap','torso','apron','knot','head','sleeve-l','sleeve-r'])
     assert.ok(chefInfo.names.includes(detail+' surface'),detail+' matches the reference');
   assert.equal(chefInfo.skinned,false,'Static chef has no skeletal animation');
-  assert.ok(chefInfo.position[2]<-9,'Chef stands behind the conveyor');
-  assert.ok(chefInfo.landmarks.hat.y<0,'The hat is above the frame');
-  assert.ok(chefInfo.landmarks.chin.y>=0 && chefInfo.landmarks.chin.y<.07,'The top edge crops near the chin');
-  assert.ok(chefInfo.landmarks.chest.visible,'The upper torso is visible');
-  assert.equal(chefInfo.landmarks.feet.visible,false,'Feet are outside the close-up');
+  assert.ok(chefInfo.position[2]<-3,'Chef stands behind the conveyor');
+  assert.ok(chefInfo.landmarks.hat.y>.04 && chefInfo.landmarks.hat.y<.25,'Entire hat fits beneath the upper frame edge');
+  assert.ok(chefInfo.landmarks.chin.visible && chefInfo.landmarks.chest.visible,'Head and upper body are unobstructed');
+  assert.equal(chefInfo.landmarks.feet.visible,false,'Counter occludes the lower body');
   console.log('Procedural chef:',JSON.stringify({triangles:chefInfo.triangles,landmarks:chefInfo.landmarks}));
   const artDirection=await page.evaluate(()=>{
     const model=window.__sushi.model;
@@ -171,11 +170,11 @@ try {
     const app=window.__sushi,chef=app.model.children.find(o=>o.name.startsWith('CHEF')),V=app.camera.position.constructor;
     const project=point=>new V(...point).applyMatrix4(chef.matrixWorld).project(app.camera);
     const hat=project(chef.userData.landmarks.hat),chest=project(chef.userData.landmarks.chest),feet=project(chef.userData.landmarks.feet);
-    return {hatCropped:hat.y>1,
+    return {hatInFrame:Math.abs(hat.x)<1 && Math.abs(hat.y)<1,
       chestVisible:app.pickAt((chest.x+1)/2*innerWidth,(1-chest.y)/2*innerHeight)===chef,
       feetVisible:app.pickAt((feet.x+1)/2*innerWidth,(1-feet.y)/2*innerHeight)===chef};
   });
-  assert.ok(portraitChef.hatCropped && portraitChef.chestVisible && !portraitChef.feetVisible,'Portrait also crops the chef below the hat');
+  assert.ok(portraitChef.hatInFrame && portraitChef.chestVisible && !portraitChef.feetVisible,'Portrait also shows only the chef upper body with the whole hat');
   await page.screenshot({path:'artifacts/scene-mobile.png',timeout:120000});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.reload();

@@ -9,7 +9,7 @@ const landmark = (x, y, z) => [x / pixelsPerMeter, (floorY - y) / pixelsPerMeter
 export async function createSushiChef() {
   const chef = createChefModel({ textures: await loadChefTextures(frontURL, atlasURL) });
   chef.name = 'CHEF · reference reconstruction';
-  chef.position.set(0, -1.25, -10.6);
+  chef.position.set(0, -1.25, -5.2);
   chef.scale.setScalar(11.27 * .73 / ((floorY - 24) / pixelsPerMeter));
   Object.assign(chef.userData, {
     procedural: true,
