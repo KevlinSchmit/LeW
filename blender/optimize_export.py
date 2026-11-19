@@ -15,7 +15,7 @@ for parent in [o for o in bpy.data.objects if o.type=='EMPTY']:
     buckets={}
     for obj in list(parent.children):
         if obj.type!='MESH' or len(obj.data.materials)!=1:continue
-        if obj.name.startswith('Belt tile'):continue
+        if obj.name.startswith('Belt tile') or obj.name=='PlateSupportTop':continue
         key=obj.data.materials[0].name
         buckets.setdefault(key,[]).append(obj)
     for key,objs in buckets.items():

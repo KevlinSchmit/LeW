@@ -62,6 +62,45 @@ function woodGlints(material) {
   material.customProgramCacheKey=()=> 'wood-varnish-sharp-v1';
 }
 
+// Banded light follows the deformed surface normal. Keep a share of the
+// restaurant light for the warm bounce from the counter and lanterns.
+function celLight(material, cotton) {
+  const sleeve=material.name.includes('sleeve-');
+  const coverage=material.userData.clothInk;
+  material.onBeforeCompile=shader=>{
+    if(coverage){
+      shader.uniforms.uGarmentInk={value:coverage};
+      const weights=sleeve?'vec4(1.,morphTargetInfluences[0],0.,0.)'
+        :'vec4(1.,morphTargetInfluences[0],morphTargetInfluences[1],morphTargetInfluences[2])';
+      const varyings='varying vec2 vGarmentUV; varying vec4 vInkWeights; varying float vSeam;\n';
+      shader.vertexShader=varyings+(sleeve?'attribute vec2 clothCrease;\n':'')+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <morphtarget_vertex>',`
+        #include <morphtarget_vertex>
+        vGarmentUV=uv; vInkWeights=vec4(1.,0.,0.,0.); vSeam=0.;
+        #ifdef USE_MORPHTARGETS
+          vInkWeights=${weights};
+          ${sleeve?'vSeam=clothCrease.x+clothCrease.y*morphTargetInfluences[0]; vInkWeights*=step(.99,color.r);':''}
+        #endif`);
+      shader.fragmentShader='uniform sampler2D uGarmentInk;\n'+varyings+shader.fragmentShader;
+    }
+    shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
+      vec3 chefKey=normalize(mat3(viewMatrix)*vec3(-.48,.74,.61));
+      float facing=dot(normalize(normal),chefKey);
+      float feather=clamp(1.35*fwidth(facing),.025,.080);
+      float midtone=smoothstep(-.14-feather,-.14+feather,facing);
+      float highlight=smoothstep(.46-feather,.46+feather,facing);
+      vec3 tone=mix(vec3(.40,.42,.46),vec3(.73,.72,.70),midtone);
+      tone=mix(tone,vec3(1.03,1.00,.94),highlight);
+      tone*=${coverage && sleeve?'1.-.40*clamp(vSeam,0.,1.)':'1.'};
+      outgoingLight=mix(outgoingLight,diffuseColor.rgb*tone,${cotton ? '.77' : '.48'});
+      ${coverage?`vec4 pen=texture2D(uGarmentInk,vGarmentUV)*vInkWeights;
+      float coverage=max(max(pen.r,pen.g),max(pen.b,pen.a));
+      outgoingLight=mix(outgoingLight,vec3(.008,.007,.006),coverage);`:''}
+      #include <opaque_fragment>`);
+  };
+  material.customProgramCacheKey=()=>coverage?(sleeve?'chef-ink-sleeve':'chef-ink-jacket'):cotton?'chef-cotton-cel':'chef-figure-cel';
+}
+
 /** Keep brushwork visible and reserve specular response for material identity. */
 export function refineSurface(material) {
   const name=material.name.toLowerCase();
@@ -71,6 +110,7 @@ export function refineSurface(material) {
   if('specularIntensity' in material)material.specularIntensity=.10;
   if(name.startsWith('chef')){
     material.roughness=.98;material.envMapIntensity=.015;
+    celLight(material,name.endsWith('cloth'));
     if('specularIntensity' in material)material.specularIntensity=.03;
     if(name.includes('indigo woven')){material.emissiveMap=material.map;material.emissive.set('#b4c0df');material.emissiveIntensity=.45;}
   }else if(name.includes('honey oak')){
@@ -100,42 +140,68 @@ export function refineSurface(material) {
   }
   if(material.map){
     // Native texel density stays visible up close, with mipmaps for distant props.
-    material.map.magFilter=THREE.NearestFilter;
+    material.map.magFilter=name.startsWith('chef')?THREE.LinearFilter:THREE.NearestFilter;
     material.map.minFilter=THREE.LinearMipmapLinearFilter;
   }
 }
 
-export function makePlastic(source,bottle=false) {
+export function makeBottleGlass(source) {
   const material=new THREE.MeshPhysicalMaterial({
-    name:bottle ? 'Bottle glass · thick green edges' : 'Clear molded food cover · thin PET',
-    color:bottle ? '#9ba98c' : '#e0dfc5',metalness:0,roughness:bottle ? .09 : .18,
+    name:'Bottle glass · thick green edges',color:'#9ba98c',metalness:0,roughness:.09,
     normalMap:source.normalMap,normalScale:new THREE.Vector2(.025,.025),
-    transmission:0,thickness:bottle ? .10 : .018,ior:bottle ? 1.52 : 1.46,
-    transparent:true,opacity:1,depthWrite:false,envMapIntensity:bottle ? .30 : .18,
-    side:THREE.FrontSide,clearcoat:0,specularIntensity:bottle ? .35 : .20,
+    transmission:0,thickness:.10,ior:1.52,
+    transparent:true,opacity:1,depthWrite:false,envMapIntensity:.30,
+    side:THREE.FrontSide,clearcoat:0,specularIntensity:.35,
   });
-  // Clear center, firm rim: keep the painted food sharp through the thin shell.
   material.onBeforeCompile=shader=>{
     shader.fragmentShader=shader.fragmentShader.replace('#include <alphatest_fragment>',
       `float rim=pow(1.-abs(dot(normalize(vNormal),normalize(vViewPosition))),2.2);
-       diffuseColor.a*=${bottle ? '.09+.68*rim' : '.025+.34*rim'};
+       diffuseColor.a*=.09+.68*rim;
        #include <alphatest_fragment>`);
   };
-  material.customProgramCacheKey=()=>bottle ? 'painted-bottle-v1' : 'painted-pet-v1';
+  material.customProgramCacheKey=()=> 'painted-bottle-v1';
   return material;
 }
 
 /** Inverted hulls give the low-poly chef a readable black silhouette. */
-export function outlineChef(root) {
+export function outlineChef(root, width = .028) {
   const outline=new THREE.MeshBasicMaterial({name:'CHEF · black outline',color:0x080605,side:THREE.BackSide});
   outline.onBeforeCompile=shader=>{
-    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
-      'vec3 transformed=vec3(position+normal*.028);');
+    shader.vertexShader=shader.vertexShader.replace('#include <morphtarget_vertex>',
+      `#include <morphtarget_vertex>\ntransformed+=normal*${width.toFixed(5)};`);
   };
-  outline.customProgramCacheKey=()=> 'chef-outline-v1';
+  outline.customProgramCacheKey=()=> `chef-outline-${width}`;
+  const sleeveInk=outline.clone();
+  sleeveInk.color.set(0x49413a);
+  sleeveInk.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <morphtarget_vertex>',
+      `#include <morphtarget_vertex>\ntransformed+=normal*${(width*.60).toFixed(5)};`);
+  };
+  sleeveInk.customProgramCacheKey=()=>`sleeve-outline-${width}`;
   const meshes=[];root.traverse(o=>{if(o.isMesh && !o.userData.noOutline)meshes.push(o);});
   for(const mesh of meshes){
-    const hull=new THREE.Mesh(mesh.geometry,outline);hull.name='Chef silhouette ink';
+    const isSleeve=mesh.userData.componentId?.startsWith('sleeve-');
+    const ink=isSleeve?sleeveInk:outline;
+    let shell=mesh.geometry;
+    if(isSleeve){
+      // Include only the exterior. An inverted copy of the hem facing would
+      // ink the sleeve interior and fill narrow elbow creases with black.
+      const exterior=new THREE.BufferGeometry();
+      for(const [name,attr] of Object.entries(shell.attributes))exterior.setAttribute(name,attr);
+      exterior.setIndex(shell.index);
+      exterior.morphAttributes=shell.morphAttributes;
+      exterior.morphTargetsRelative=shell.morphTargetsRelative;
+      const {longitude,latitude}=shell.userData.grid;
+      exterior.setDrawRange(0,longitude*latitude*6);
+      shell=exterior;
+    }
+    const hull=mesh.isSkinnedMesh?new THREE.SkinnedMesh(shell,ink):new THREE.Mesh(shell,ink);
+    if (mesh.isSkinnedMesh) {
+      hull.bind(mesh.skeleton, mesh.bindMatrix);
+      hull.frustumCulled = false;
+    }
+    if(mesh.morphTargetInfluences)hull.morphTargetInfluences=mesh.morphTargetInfluences;
+    hull.name='Chef silhouette ink';
     hull.userData.chefOutline=true;hull.raycast=()=>{};hull.castShadow=false;hull.receiveShadow=false;
     mesh.add(hull);
   }

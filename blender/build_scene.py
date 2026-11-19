@@ -170,41 +170,35 @@ beltmat=mat('Warm conveyor tiles',(.38,.34,.27),metal=.15,rough=.72,texture='bel
 for i in range(50):box('Belt tile %02d'%i,(-12.25+i*.50,2.05,1.76),(.487,2.10,.05),beltmat,conveyor,b=.08)
 box('Conveyor rear rim',(0,3.18,1.75),(25,.13,.14),steel,conveyor,b=.02)
 # Back service counter, walls, and timber framing. No people.
-box('Dark timber ceiling',(0,5,14.0),(55,36,.40),darkwood,room)
-for x in [-19,19]:box('Restaurant side wall',(x,7,3),(1,30,14),plaster,room)
-box('Back service counter',(0,7,1.18),(25,2.0,.28),wood,room,b=.08)
-box('Back service frontage',(0,7,0),(25,1.7,2.2),darkwood,room,b=.03)
-box('Rear plaster wall',(0,12,4.5),(55,.3,14),plaster,room)
+roof=group('RoomRoof',(0,3.9,0));roof.scale.y=1.30;roof.parent=room
+back=group('RoomBack',(0,14.4,0));back.parent=room
+for name,x in [('RoomLeft',-20.7),('RoomRight',20.7)]:
+    side=group(name,(0,2.72,0));side.scale.y=1.34;side.parent=room
+    box('Restaurant side wall',(x,7,3),(1,30,14),plaster,side)
+box('Dark timber ceiling',(0,5,14.0),(55,36,.40),darkwood,roof)
+box('Rear plaster wall',(0,12,4.5),(55,.3,14),plaster,back)
 for x in [-12,-8,-4,0,4,8,12]:
-    box('Timber pillar',(x,11.72,4.2),(.32,.42,9),darkwood,room,b=.03)
-    box('Ceiling joist',(x,4,13.2),(.27,16,.35),darkwood,room,b=.03)
-for z in [2.2,6.5,8.4]:box('Horizontal timber',(0,11.60,z),(27,.4,.32),darkwood,room)
+    box('Timber pillar',(x,11.72,4.2),(.32,.42,9),darkwood,back,b=.03)
+    box('Ceiling joist',(x,4,13.2),(.27,16,.35),darkwood,roof,b=.03)
+for z in [2.2,6.5,8.4]:box('Horizontal timber',(0,11.60,z),(27,.4,.32),darkwood,back)
 # Shoji grid with blue night behind it.
 for x in [-9,-5,-1,3]:
-    box('Shoji evening blue',(x,11.53,4.4),(3.45,.08,3.55),blueglass,room,b=0)
-    for j in range(5):box('Shoji fine vertical',(x-1.7+j*.85,11.38,4.4),(.075,.10,3.6),edgewood,room,b=.01)
-    for j in range(5):box('Shoji fine horizontal',(x,11.35,2.65+j*.88),(3.5,.1,.075),edgewood,room,b=.01)
+    box('Shoji evening blue',(x,11.53,4.4),(3.45,.08,3.55),blueglass,back,b=0)
+    for j in range(5):box('Shoji fine vertical',(x-1.7+j*.85,11.38,4.4),(.075,.10,3.6),edgewood,back,b=.01)
+    for j in range(5):box('Shoji fine horizontal',(x,11.35,2.65+j*.88),(3.5,.1,.075),edgewood,back,b=.01)
 # Noren on right side.
 for i in range(4):
     x=7.1+i*1.3
-    plane('Noren · separate fabric panel',[(x-.61,10.94,4.8),(x+.61,10.94,4.8),(x+.61,10.94,7.3),(x-.61,10.94,7.3)],curtain,room)
-    box('Noren top tab',(x,10.94,7.38),(.14,.12,.34),darkwood,room,b=.03)
-box('Noren bamboo rail',(9,11.02,7.45),(6,.13,.13),edgewood,room)
-# The background intentionally has no light fixtures, shades or hanging stems.
-# Soft background details: dishes and stools.
-for x in [-8,-3,2,6,10]:
-    cylinder('Distant stool seat',(x,5.5,-.20),.62,.18,darkwood,room)
-    for dx in [-.4,.4]:box('Distant stool leg',(x+dx,5.5,-.8),(.09,.09,1.2),black,room)
-    cylinder('Back counter saucer',(x,6.7,1.37),.63,.08,cream,room)
-    sphere('Distant salmon',(x,6.7,1.55),(.42,.23,.13),salmon,room)
-    cylinder('Distant tea cup',(x+1,7.2,1.58),.22,.5,cream,room)
+    plane('Noren · separate fabric panel',[(x-.61,10.94,4.8),(x+.61,10.94,4.8),(x+.61,10.94,7.3),(x-.61,10.94,7.3)],curtain,back)
+    box('Noren top tab',(x,10.94,7.38),(.14,.12,.34),darkwood,back,b=.03)
+box('Noren bamboo rail',(9,11.02,7.45),(6,.13,.13),edgewood,back)
 
 # Stacks at left, each dish is its own mesh.
 stack=group('DISHES · two lacquer stacks',(0,4.2,.75))
-box('Plate stack rear service ledge',(-10.2,6.0,2.39),(5.5,4.3,.24),wood,room,b=.08)
+box('PlateSupportTop',(-9.23,6.76,2.43),(6.50,4.80,.24),wood,room,b=.08)
 plate_profile=[(0,0),(.68,0),(.78,.06),(.95,.15),(1.0,.23),(1.0,.29),(.95,.31),(.86,.22),(.70,.14),(0,.14)]
-for col,(x,y,count,r) in enumerate([(-10.3,1.0,15,1.6),(-8.6,3.0,10,1.5)]):
-    column=group('Plate column %d'%col,(x,y,1.8 if col==0 else 2.15));column.parent=stack
+for col,(x,y,count,r) in enumerate([(-10.55,1.92,15,1.6),(-7.70,3.25,10,1.5)]):
+    column=group('Plate column %d'%col,(x,y,1.8));column.parent=stack
     for i in range(count):
         m=[cream,navy,yellow,red,green][i%5]
         o=lathe('Stack %d · dish %02d'%(col,i),[(a*r,b*.65) for a,b in plate_profile],m,column,loc=(0,0,i*.25))
@@ -373,12 +367,6 @@ for idx,(kind,x,pm) in enumerate([('roe',-6.55,red),('egg',-2.18,cream),('salmon
             for theta in [a-width,a+width]:vertices.append((r*cos(theta),r*sin(theta),z+.012))
         mesh(kind+' · PET hard highlight',vertices,[(i,i+1,i+3,i+2) for i in range(0,len(vertices)-2,2)],highlight,g)
     torus(kind+' · ink plate edge',(0,0,.225),1.91,.014,ink,g)
-    cylinder(kind+' · sign clip',(0,.10,2.31),.095,.20,steel,g,vertices=24)
-    # sign: a small ceramic rounded square with original painted art.
-    sg=group(kind+' · ceramic identification sign');sg.parent=g;sg.location=(0,.1,2.72);sg.rotation_euler=(math.radians(-10),math.radians(-9 if idx%2==0 else 8),0)
-    box(kind+' · sign porcelain',(0,0,0),(.78,.10,.72),cream,sg,b=.055)
-    sm=mat('Painted sign · '+kind,(1,1,1),rough=.45,texture='sign_'+kind)
-    plane(kind+' · painted sign face',[(-.36,-.057,-.33),(.36,-.057,-.33),(.36,-.057,.33),(-.36,-.057,.33)],sm,sg)
     if kind=='roe':
         for ix in [-.48,.47]:
             # Each gunkan has a rice base, wavy dark seaweed collar and translucent roe.

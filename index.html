@@ -9,8 +9,50 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%239b3827'/%3E%3Cpath d='M12 42a20 20 0 0140 0M19 42a13 13 0 0126 0M26 42a6 6 0 0112 0' fill='none' stroke='%23f4dfbb' stroke-width='3'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <main id="app" aria-label="A three-dimensional sushi restaurant counter">
-      <canvas id="scene" aria-label="3D sushi bar: moving sushi under glass covers, a tea set, an indigo menu, a brass bell and a resume receipt" tabindex="0"></canvas>
+    <main id="app" data-intro="opening" aria-label="A three-dimensional sushi restaurant counter">
+      <canvas id="scene" aria-label="3D sushi bar with a moving conveyor, tea service, wasabi and a warm white music player" aria-description="Press Enter to open the menu, T to pour tea, E to view Experience, or M to open Music" aria-keyshortcuts="Enter T E M" tabindex="0"></canvas>
+      <canvas id="object-hover-label" role="img" hidden></canvas>
+      <button id="start-exploring" type="button" aria-label="START EXPLORING →" hidden></button>
+      <div id="tea-story" hidden>
+        <article class="tea-paper" role="dialog" aria-modal="true" aria-labelledby="tea-story-heading" tabindex="-1">
+          <h2 id="tea-story-heading" class="visually-hidden">Every cup has a story.</h2>
+          <div id="tea-heading-slot" aria-hidden="true"></div>
+          <div class="tea-story-copy">
+            <p>The best seat at the counter is the one you stop rushing past. Stay long enough and you notice how the glaze catches the light, how the plates keep time, and how the tea changes color as it settles.</p>
+            <p>I built this counter around those small moments. I like making digital places that feel as though someone has just stepped away from them. Pull up a seat. There’s always a little more to notice.</p>
+            <button id="tea-exit" class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+          </div>
+        </article>
+      </div>
+      <canvas id="tea-title" aria-hidden="true" hidden></canvas>
+      <div id="resume-story" class="counter-paper" hidden>
+        <article class="tea-paper receipt-paper" role="dialog" aria-modal="true" aria-labelledby="resume-heading" tabindex="-1">
+          <h2 id="resume-heading"><span class="visually-hidden">Resume</span><canvas aria-hidden="true"></canvas></h2>
+          <div class="tea-story-copy">
+            <p>I design and build interactive experiences. I work from the first sketch through the details that make a scene feel lived in.</p>
+            <p>This counter brings together Three.js, modeling, hand painted textures, animation, and the little surprises that make people want to stay a little longer.</p>
+          </div>
+          <button class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+        </article>
+      </div>
+      <div id="sushi-story" class="counter-paper" hidden>
+        <div class="sushi-paper-window">
+          <article class="tea-paper sushi-paper" role="dialog" aria-modal="true" aria-labelledby="sushi-heading" tabindex="-1">
+            <h2 id="sushi-heading"><span class="visually-hidden">Sushi at the counter</span><canvas aria-hidden="true"></canvas></h2>
+            <img class="sushi-paper-illustration" alt="">
+            <button class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+          </article>
+        </div>
+      </div>
+      <section id="experience" aria-label="Experience" hidden>
+        <article id="experience-copy" aria-labelledby="experience-heading" tabindex="-1" hidden>
+          <h2 id="experience-heading"><span class="visually-hidden"></span><canvas aria-hidden="true"></canvas></h2>
+          <p></p>
+        </article>
+        <button class="paper-exit experience-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+      </section>
+      <p id="mp3-status" class="visually-hidden" role="status" aria-live="polite"></p>
+      <button id="mp3-exit" class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
       <header class="masthead">
         <a class="brand" href="#" aria-label="Kevlin's sushi counter, reset view">
           <span class="seal" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M5 28a15 15 0 0130 0M10 28a10 10 0 0120 0M15 28a5 5 0 0110 0"/></svg></span>
@@ -26,9 +68,11 @@
           <span class="divider"></span>
           <button id="look" aria-pressed="false" title="Drag to look around"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z"/><circle cx="10" cy="10" r="2"/></svg><span>Look around</span></button>
         </div>
-        <button id="fullscreen" class="icon-button" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg></button>
+        <div class="view-actions">
+          <button id="tour" aria-pressed="false" title="360° scene view"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.6 6.5C13.7 5.7 11.9 5.4 10 5.4c-4.6 0-8 2.1-8 4.6s3.4 4.6 8 4.6 8-2.1 8-4.6c0-.7-.3-1.4-.9-2"/><path d="m13 4 2.9 2.6-3.6 1.2"/></svg><span>360° view</span></button>
+          <button id="fullscreen" class="icon-button" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg></button>
+        </div>
       </footer>
-      <button id="plate-stack" class="object-hotspot" hidden aria-label="Select plate collection" aria-pressed="false"><span></span>Plate collection <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg></button>
       <div id="hint" role="status" aria-live="polite"></div>
       <div id="loading" role="status"><span class="loading-mark">鮨</span><span class="loading-title">A little something is being prepared.</span><span class="loading-rule"><i></i></span><span class="loading-subtitle">WELCOME TO THE COUNTER</span></div>
       <div id="error" hidden><h1>Please take another seat.</h1><p>This scene needs a browser with WebGL 2 enabled.</p><button onclick="location.reload()">Try again</button></div>
