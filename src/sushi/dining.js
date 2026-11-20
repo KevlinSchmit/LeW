@@ -7,6 +7,7 @@ const direction = new THREE.Vector3(.82,.19,.67).normalize();
 const pinchAxis = new THREE.Vector3(direction.z,0,-direction.x).normalize();
 const ease = THREE.MathUtils.smootherstep;
 const movementTime = 1.78;
+const biteCues=[[.66,'sticks',.47,.18],[1.40,'bite',.52,0]];
 
 function separateFood(dish) {
   const food=dish.children.filter(part=>!matchesTableware(part));
@@ -50,7 +51,7 @@ function bitePose(part) {
   };
 }
 
-export function createDiningChopsticks(model, bamboo) {
+export function createDiningChopsticks(model, bamboo, sounds) {
   const sticks=new THREE.Group();
   sticks.name='Bamboo chopsticks in hand';
   sticks.visible=false;
@@ -88,10 +89,11 @@ export function createDiningChopsticks(model, bamboo) {
     return {bites, duration:bites.length*movementTime};
   }
 
-  function update({bites,duration}, time, camera) {
+  function update({bites,duration}, previous, time, camera) {
     sticks.visible=time<duration;
     for (const [i,bite] of bites.entries()) {
       const t=time-i*movementTime;
+      sounds.cues(previous-i*movementTime,t,biteCues);
       bite.part.visible=t<1.41;
       if (t<0 || t>=movementTime) continue;
       const {part,width,start}=bite;

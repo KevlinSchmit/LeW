@@ -176,7 +176,7 @@ function sample(time, arms, restFood) {
   return { food, rotation, poses };
 }
 
-function armJoints(a) {
+export function armJoints(a) {
   return [a.upperBone,a.bendBone,a.elbowBone,a.skinRoll,a.rollBone,a.wristBone,...a.digits.flatMap(d=>d.bones)];
 }
 
@@ -202,7 +202,7 @@ function makeClip(arms, nigiri, restFood) {
 
 // Bake fabric controls from the solved joints, so all clips use the same
 // sleeve response while the cutter and supporting hand move independently.
-function animateJacket(clip,chef,arms) {
+export function animateJacket(clip,chef,arms) {
   const surfaces=chef.userData.sculptRuntime.meshes;
   const garment=id=>surfaces.find(mesh=>mesh.userData.componentId===id);
   const panels=[garment('torso'),garment('collar')];
@@ -269,9 +269,11 @@ export function startChefAnimation(chef, arms, salmonPlate) {
     mesh.castShadow = mesh.receiveShadow = true;
     table.add(mesh);
   }
-  plank(0,-.05,0,5.4,.10,1.04);
+  plank(-1.05,-.05,-.47,10.7,.10,1.98);
+  // The outer return leaves an open lift path behind the worktop.
+  plank(-8,-.05,-2.47,3.2,.10,3.86);
   const postTop=-.10,postBase=chef.position.y-table.position.y;
-  for (const x of [-2.56,2.56]) for (const z of [-.44,.44])
+  for (const [x,z] of [[-6.18,.36],[4.08,.36],[4.08,-1.25],[-9.38,-4.17],[-6.62,-4.17]])
     plank(x,(postTop+postBase)/2,z,.12,postTop-postBase,.12);
   chef.parent.add(table);
   const foodHeight = bounds.getSize(new THREE.Vector3()).y * scale;
@@ -289,7 +291,7 @@ export function startChefAnimation(chef, arms, salmonPlate) {
   chef.animations.push(clip,slicing,cleaning,adjusting);
   mixer.clipAction(clip).play();
   mixer.update(0);
-  return mixer;
+  return {mixer,table,ready};
 }
 
 // Play each recipe once per bag. Avoid an immediate repeat across bag boundaries.
@@ -313,7 +315,7 @@ export function cycleChefIdles(mixer, clips, random=Math.random) {
     remaining=clip.duration;
   }
   next();
-  return seconds=>{
+  function advance(seconds) {
     while(seconds>=remaining) {
       mixer.update(remaining);
       seconds-=remaining;
@@ -321,5 +323,16 @@ export function cycleChefIdles(mixer, clips, random=Math.random) {
     }
     mixer.update(seconds);
     remaining-=seconds;
-  };
+  }
+  function suspend() {
+    const time=active.time;
+    active.stop();
+    return () => {
+      active.reset();
+      active.time=time;
+      active.play();
+      mixer.update(0);
+    };
+  }
+  return {advance,next,suspend};
 }

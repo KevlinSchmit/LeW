@@ -10,7 +10,7 @@
   </head>
   <body>
     <main id="app" data-intro="opening" aria-label="A three-dimensional sushi restaurant counter">
-      <canvas id="scene" aria-label="3D sushi bar with a moving conveyor, tea service, wasabi and a warm white music player" aria-description="Press Enter to open the menu, T to pour tea, E to view Experience, or M to open Music" aria-keyshortcuts="Enter T E M" tabindex="0"></canvas>
+      <canvas id="scene" aria-label="3D sushi bar with a moving conveyor, tea service, wasabi and a warm white music player" aria-description="Press Enter for the menu, T for tea, E for Experience, M for Music, or C to ring the Contact bell" aria-keyshortcuts="Enter T E M C" tabindex="0"></canvas>
       <canvas id="object-hover-label" role="img" hidden></canvas>
       <button id="start-exploring" type="button" aria-label="START EXPLORING →" hidden></button>
       <div id="tea-story" hidden>
@@ -53,6 +53,13 @@
       </section>
       <p id="mp3-status" class="visually-hidden" role="status" aria-live="polite"></p>
       <button id="mp3-exit" class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+      <button id="contact-accept" type="button" aria-label="Read Contact Me card" hidden></button>
+      <div id="contact-view" hidden>
+        <article role="dialog" aria-modal="true" aria-labelledby="contact-title" tabindex="-1">
+          <h2 id="contact-title" class="visually-hidden">Contact Me</h2>
+          <button class="paper-exit" type="button" aria-label="Back to Explore"><canvas aria-hidden="true"></canvas></button>
+        </article>
+      </div>
       <header class="masthead">
         <a class="brand" href="#" aria-label="Kevlin's sushi counter, reset view">
           <span class="seal" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M5 28a15 15 0 0130 0M10 28a10 10 0 0120 0M15 28a5 5 0 0110 0"/></svg></span>
@@ -70,6 +77,7 @@
         </div>
         <div class="view-actions">
           <button id="tour" aria-pressed="false" title="360° scene view"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.6 6.5C13.7 5.7 11.9 5.4 10 5.4c-4.6 0-8 2.1-8 4.6s3.4 4.6 8 4.6 8-2.1 8-4.6c0-.7-.3-1.4-.9-2"/><path d="m13 4 2.9 2.6-3.6 1.2"/></svg><span>360° view</span></button>
+          <button id="sound" class="icon-button" type="button" aria-label="Sound effects" aria-pressed="true" title="Mute sound effects"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3Z"/><path class="sound-waves" d="M13 7.5a3.8 3.8 0 0 1 0 5m2-7a6.6 6.6 0 0 1 0 9"/><path class="sound-off" d="m13 8 4 4m0-4-4 4"/></svg></button>
           <button id="fullscreen" class="icon-button" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg></button>
         </div>
       </footer>

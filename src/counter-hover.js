@@ -3,19 +3,22 @@ import { matchesTableware } from './sushi/servings.js';
 import { isFrontDish } from './conveyor.js';
 
 export function createCounterHover(model, plates, plateStack, sceneTarget, camera) {
-  const pickables = [];
+  let pickables = [];
   const targets = new Map();
+  const servings = new Map();
   const root = prefix => model.children.find(part => part.name.startsWith(prefix));
 
   function register(label, roots, outline = () => true, enabled = () => true) {
-    const entry = { label, root: roots[0], surfaces: [], enabled };
+    const entry = { label, root: roots[0], parts: [], surfaces: [], enabled };
     for (const object of roots) object.traverse(part => {
       if (!part.isMesh || /^(Sushi outline|Fine black contour)$/.test(part.name)) return;
       if (!part.geometry.boundingBox) part.geometry.computeBoundingBox();
       pickables.push(part);
+      entry.parts.push(part);
       targets.set(part, entry);
       if (outline(part)) entry.surfaces.push(part);
     });
+    return entry;
   }
 
   const noOutline = () => false;
@@ -30,6 +33,8 @@ export function createCounterHover(model, plates, plateStack, sceneTarget, camer
   register(null, [sticks]);
   register(null, chopsticks.children.filter(part => part !== sticks), noOutline);
   register('Contact', [root('BELL')]);
+  const card=root('Contact card');
+  register('Contact', [card], part=>part.name!=='Contact card highlight',()=>card.userData.parked);
   register('Resume', [root('POS')]);
   register(null, [model.getObjectByName('Wasabi jar')], noOutline);
   register(null, [model.getObjectByName('Soy dispenser')], noOutline);
@@ -37,9 +42,16 @@ export function createCounterHover(model, plates, plateStack, sceneTarget, camer
   const [leftStack, rightStack] = [...plateStack.children].sort((a, b) => a.position.x - b.position.x);
   register('Experience', [leftStack]);
   register(null, [rightStack], noOutline);
-  for (const plate of plates) {
-    register(null, [plate], part => !matchesTableware(part), () => plate.visible && isFrontDish(plate));
+  function registerServing(plate) {
+    servings.set(plate,register(null,[plate],part=>!matchesTableware(part),()=>plate.visible && isFrontDish(plate)));
   }
+
+  function replaceServing(plate) {
+    for (const part of servings.get(plate).parts) targets.delete(part);
+    pickables=pickables.filter(part=>targets.has(part));
+    registerServing(plate);
+  }
+  plates.forEach(registerServing);
 
   const mask = new THREE.WebGLRenderTarget(sceneTarget.width, sceneTarget.height, {
     format: THREE.RedFormat, depthBuffer: false,
@@ -88,7 +100,7 @@ export function createCounterHover(model, plates, plateStack, sceneTarget, camer
       ray.setFromCamera(pointer, camera);
       ray.intersectObjects(pickables, false, hits);
     }
-    const hit = hits[0];
+    const hit = card.visible ? hits[0] : hits.find(({object})=>object.parent!==card);
     const entry = hit && targets.get(hit.object);
     const next = entry?.enabled() ? entry : null;
     if (next !== current) {
@@ -135,7 +147,7 @@ export function createCounterHover(model, plates, plateStack, sceneTarget, camer
   }
 
   return {
-    render, resize, texture: mask.texture,
+    render, resize, replaceServing, texture: mask.texture,
     get activeObject() { return current?.root ?? null; },
     dispose() { mask.dispose(); material.dispose(); },
   };

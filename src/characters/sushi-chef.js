@@ -14,7 +14,7 @@ export async function createSushiChef() {
   // Match the fixed seated view: chin above the chest and sash at belt height.
   const sceneUnitsPerPixel = .0235;
   chef.scale.setScalar(sceneUnitsPerPixel * pixelsPerMeter);
-  chef.position.set(0, 8.34 - (floorY - 185) * sceneUnitsPerPixel, -7.18);
+  chef.position.set(0, 8.34 - (floorY - 185) * sceneUnitsPerPixel, -7.58);
   Object.assign(chef.userData, {
     procedural: true,
     landmarks: {

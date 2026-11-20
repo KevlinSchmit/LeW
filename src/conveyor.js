@@ -125,8 +125,22 @@ export function installConveyor(model, dishes) {
   }
   const dishY = dishes[0].position.y;
   dishes.forEach(dish=>dish.scale.setScalar(1.13));
+  const templates = recipes.map(dish=>dish.clone(true));
   const pose = new THREE.Object3D();
   const pending = new Map();
+  function replacementFor(slot) {
+    const index=dishes.indexOf(slot);
+    const adjacent=new Set([-2,-1,1,2].map(offset=>
+      dishes[(index+offset+dishes.length)%dishes.length].userData.sushiKind));
+    const choices=templates.filter(recipe=>!adjacent.has(recipe.userData.sushiKind));
+    return choices[Math.floor(Math.random()*choices.length)].clone(true);
+  }
+  let currentTravel = 0;
+  function futurePosition(dish, distance) {
+    sample(dishOrigin(dishes.indexOf(dish))-currentTravel-distance,pose);
+    return pose.position.clone().setY(dishY);
+  }
+  const dishOrigin = index => half-6.65+index*dishPitch;
   const view = new THREE.Frustum(), projection = new THREE.Matrix4(), bounds = new THREE.Box3();
   function setView(frustum, camera) {
     camera.updateWorldMatrix(true, false);
@@ -136,20 +150,31 @@ export function installConveyor(model, dishes) {
     pending.set(dish, setView(new THREE.Frustum(),camera));
     dish.visible = false;
   }
-  function refill(camera) {
+  function putDish(dish, replacement) {
+    if (!pending.delete(dish)) return false;
+    if (replacement) {
+      dish.clear();
+      dish.add(...replacement.children);
+      dish.userData.sushiKind=replacement.userData.sushiKind;
+      dish.userData.sushiDescription=replacement.userData.sushiDescription;
+    }
+    dish.visible = true;
+    return true;
+  }
+  function refill(camera, reserved) {
     if (pending.size === 0) return false;
     setView(view,camera);
     let changed = false;
     for (const [dish,pickupView] of pending) {
+      if (reserved(dish)) continue;
       bounds.setFromObject(dish).expandByScalar(.45);
       if (pickupView.intersectsBox(bounds) || view.intersectsBox(bounds)) continue;
-      dish.visible = true;
-      pending.delete(dish);
-      changed = true;
+      changed = putDish(dish) || changed;
     }
     return changed;
   }
   function update(travel) {
+    currentTravel = travel;
     const counts = [0,0];
     for (let i=0;i<tileCount;i++) {
       const batch = Number(sample((i+.5)*tilePitch-travel,pose));
@@ -159,7 +184,7 @@ export function installConveyor(model, dishes) {
     }
     batches.forEach((mesh,i)=>{mesh.count=counts[i];mesh.instanceMatrix.needsUpdate=true;});
     dishes.forEach((dish,i)=>{
-      sample(half-6.65+i*dishPitch-travel,pose);
+      sample(dishOrigin(i)-travel,pose);
       dish.position.copy(pose.position);
       dish.position.y=dishY;
       dish.rotation.y=pose.rotation.y;
@@ -167,5 +192,5 @@ export function installConveyor(model, dishes) {
   }
   update(0);
   const isSurface=object=>object===front || object===rear || object===endRails || batches.includes(object);
-  return {update,takeDish,refill,isSurface};
+  return {update,takeDish,putDish,replacementFor,futurePosition,refill,isSurface};
 }

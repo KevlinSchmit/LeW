@@ -21,7 +21,7 @@ const wrap=(index,count)=>(index+count)%count;
 const ease=THREE.MathUtils.smootherstep;
 const focusFov=38;
 
-export function createPlayerInteraction(parts,camera,art,status,reducedMotion,onClose){
+export function createPlayerInteraction(parts,camera,art,status,reducedMotion,sounds,onClose){
   const {player,housing,display,wheel,pressWheel}=parts;
   const screen=createPlayerScreen(art);
   const audio=new Audio();
@@ -56,6 +56,7 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,on
 
   function begin(){
     if(active)return false;
+    sounds.play('wheel',.51,.41);
     active={origin:cameraPose(),originPortrait:camera.aspect<1,aspect:camera.aspect,time:0};
     phase='entering';
     player.updateWorldMatrix(true,false);
@@ -71,6 +72,7 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,on
 
   function dismiss(){
     if(!active || phase==='leaving')return;
+    sounds.play('interface',.53,.31,.88);
     active.from=cameraPose();
     active.time=0;
     phase='leaving';
@@ -123,6 +125,8 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,on
   }
 
   function useControl(action){
+    sounds.play(action==='select'?'key':'wheel',action==='select'?.57:.63,.21,
+      action==='down'?.91:action==='up'?1.06:1);
     pulse={action:action==='back'?'up':action,time:0};
     if(action==='back')view.page='menu';
     else if(view.page==='playing'){

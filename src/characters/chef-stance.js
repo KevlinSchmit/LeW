@@ -58,12 +58,13 @@ export function rigStance(chef) {
   return {rest,hips,chest,neck:chef.getObjectByName('neck'),legs};
 }
 
-export function sampleStance(rig, depth, lean, gaze, shift) {
-  const offset=new THREE.Vector3(shift,-depth,-.61*depth);
+export function sampleStance(rig, depth, lean, gaze, shift, {feet,setback=0}={}) {
+  const offset=new THREE.Vector3(shift,-depth,-.61*depth+setback);
   const pos=rig.rest.clone().add(offset);
   const chest=turn(lean);
-  const legAngles=rig.legs.map(({hip,upper,lower,ankle})=>{
+  const legAngles=rig.legs.map(({hip,upper,lower,ankle},index)=>{
     const toAnkle=ankle.clone().sub(hip).sub(offset);
+    if(feet)toAnkle.add(feet[index]);
     const d=toAnkle.length(), axis=toAnkle.divideScalar(d);
     const along=(d*d+upper.lengthSq()-lower.lengthSq())/(2*d);
     // The bind-plane knee points forward. Project it onto the current reach

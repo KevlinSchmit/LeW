@@ -21,7 +21,7 @@ function preparePlates(column) {
   });
 }
 
-export function createPlateExperience(stack, scene, camera, onClose) {
+export function createPlateExperience(stack, scene, camera, sounds, onClose) {
   const column=stack.children.reduce((left,node)=>node.position.x<left.position.x ? node : left);
   const plates=preparePlates(column);
   const proxyList=plates.map(p=>p.proxy);
@@ -115,6 +115,7 @@ export function createPlateExperience(stack, scene, camera, onClose) {
     copy.style.setProperty('--plate-copy',opacity);
   }
   function reveal(plate){
+    sounds.play('plateSlide',plate.slide>.6?.46:.69,-.32);
     picked={plate,start:plate.mesh.position.clone()};
     hovered=null;
     const [title,body]=chapters[plate.index];
@@ -127,7 +128,10 @@ export function createPlateExperience(stack, scene, camera, onClose) {
   function activate(plate){
     if(stage!=='browsing' || !plate)return;
     if(plate.index<chapters.length) reveal(plate);
-    else if(!plate.shake)plate.shake=rockTime;
+    else if(!plate.shake){
+      plate.shake=rockTime;
+      sounds.play('plateRock',.55,-.44,.97);
+    }
   }
   function slidePlates(dt){
     let moving=false;
@@ -150,6 +154,7 @@ export function createPlateExperience(stack, scene, camera, onClose) {
   }
   function begin() {
     if(stage!=='idle')return false;
+    sounds.play('interface',.51,-.45);
     origin=cameraState();
     overlay.hidden=false;
     setExit('Back to Explore');
@@ -158,12 +163,14 @@ export function createPlateExperience(stack, scene, camera, onClose) {
   }
   function dismiss() {
     if(stage==='turning'||stage==='reading'){
+      sounds.play('plateLift',.42,-.19,.92);
       turnFrom=stage==='reading'?turnTime:time;
       keyboardPlate=null;
       showReading(0);
       setStage('storing');
       exit.focus({preventScroll:true});
     }else if(stage==='browsing'||stage==='entering'){
+      sounds.play('interface',.51,-.42,.92);
       departure=cameraState();
       hovered=keyboardPlate=null;
       setStage('leaving');
@@ -199,6 +206,7 @@ export function createPlateExperience(stack, scene, camera, onClose) {
     if(stage==='storing'){
       facePlate(turnFrom*(1-ease(time,0,.96)));
       if(time>=.96){
+        sounds.play('plateStack',.50,-.43);
         // Continue the ease from the amount that was already pulled out at the click.
         picked=null;
         setExit('Back to Explore');

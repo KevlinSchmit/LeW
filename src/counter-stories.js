@@ -10,14 +10,19 @@ const ease = THREE.MathUtils.smootherstep;
 const vector = (x,y,z) => new THREE.Vector3(x,y,z);
 const servingSpot = vector(.10,.052,3.58);
 const coverAwayAt = 2.78;
+const sushiFocusAt = 2.85;
 const returnTime = 1.17;
+const printCues=[[1.015,'printer',.72,.38],[3.54,'paperSlide',.42,.32]];
+const servingCues=[[.10,'bookLift',.30,0],[.23,'sticks',.31,.23],
+  [1.47,'plateSet',.77],[1.66,'lid',.57,.09]];
+const clearingCues=[[1.36,'plateStack',.63,-.42],[1.52,'sticks',.29,.05]];
 
-export function createCounterStories(model, camera, renderer, menu, onClose) {
+export function createCounterStories(model, camera, renderer, menu, sounds, {onClose,onSushiFocus,onMeal}) {
   const terminal = model.children.find(part => part.name.startsWith('POS'));
   const chopsticks = model.children.find(part => part.name.startsWith('CHOPSTICKS'));
   const bamboo = chopsticks.children.find(part => part.material?.name.includes('End-grain & bamboo'));
   const china = chopsticks.children.filter(part => part !== bamboo);
-  const dining = createDiningChopsticks(model,bamboo);
+  const dining = createDiningChopsticks(model,bamboo,sounds);
   const usedPlates = new THREE.Group();
   usedPlates.name = 'Guest used plate stack';
   model.add(usedPlates);
@@ -39,8 +44,12 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
     if (active || (kind==='sushi' && (!source.visible || !isFrontDish(source)))) return false;
     const sheet = kind==='resume' ? resumeSheet : sushiSheet;
     active = {kind, sheet, origin:cameraState(), time:0, revealed:false};
-    if (kind === 'resume') return true;
+    if (kind === 'resume') {
+      sounds.play('key',.64,.46);
+      return true;
+    }
 
+    sounds.play('plateLift',.64,source.position.x*.067);
     const dish = source.clone(true);
     dish.name = 'Selected serving on the guest counter';
     model.add(dish);
@@ -52,17 +61,20 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
     sushiPicture.src = art.get(kindName);
     sushiPicture.alt = source.userData.sushiDescription || `${kindName} sushi`;
     const props = [menu, bamboo, ...china].map(part => ({part,start:part.position.clone()}));
-    Object.assign(active,{dish,covers,props,dishStart:dish.position.clone(),yaw:dish.rotation.y});
+    Object.assign(active,{source,dish,covers,props,dishStart:dish.position.clone(),yaw:dish.rotation.y});
     return true;
   }
 
   function dismiss() {
     if (!active || active.returning || active.meal) return;
+    if(active.revealed)sounds.play('paperSlide',.48,active.dish?0:.31,1.06);
+    else sounds.play('interface',.40);
+    sounds.stop('printer');
     active.sheet.hide();
     receipt.hide();
     if (active.dish) {
       active.skipPaper=true;
-      if (active.time>=coverAwayAt) beginMeal(active);
+      if (active.time>=sushiFocusAt) beginMeal(active);
     } else active.returning = {time:0,camera:cameraState()};
   }
 
@@ -70,6 +82,7 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
     state.covers.forEach(({part})=>part.removeFromParent());
     state.meal={time:0, take:dining.prepare(state.dish)};
     for (const prop of state.props) prop.from=prop.part.position.clone();
+    onMeal();
   }
 
   function setFocus(origin, center, offset, fov, t) {
@@ -96,7 +109,7 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
     }
   }
 
-  function playPrint(state) {
+  function playPrint(state,previous) {
     const t = state.time, mobile = camera.aspect<1;
     aim.copy(receipt.outlet).add(vector(0,.38,.46));
     setFocus(state.origin,aim,vector(.38,3.25,mobile?4.50:3.66),
@@ -105,10 +118,11 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
     const lift = ease(t,3.45,4.31);
     const reveal = ease(t,3.88,4.55);
     receipt.update(feed,lift,reveal,camera);
+    sounds.cues(previous,t,printCues);
     showSheet(state,reveal);
   }
 
-  function playServing(state) {
+  function playServing(state,previous) {
     const {time:t,dish,props,covers,dishStart,yaw} = state;
     const clear = ease(t,.02,.93);
     const place = ease(t,.19,1.48);
@@ -135,11 +149,16 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
       part.visible = t<coverAwayAt;
     }
     const mobile = camera.aspect<1;
+    sounds.cues(previous,state.skipPaper?Math.min(t,sushiFocusAt):t,servingCues);
     aim.copy(servingSpot).add(vector(0,.42,0));
-    setFocus(state.origin,aim,vector(.48,2.84,mobile?4.64:4.18),mobile?49:35,ease(t,1.46,2.85));
+    setFocus(state.origin,aim,vector(.48,2.84,mobile?4.64:4.18),mobile?49:35,ease(t,1.46,sushiFocusAt));
+    if (t>=sushiFocusAt && !state.cameraSettled) {
+      state.cameraSettled=true;
+      onSushiFocus();
+    }
     if (state.skipPaper) {
-      if (t>=coverAwayAt) beginMeal(state);
-    } else showSheet(state,ease(t,2.85,3.58));
+      if (state.cameraSettled) beginMeal(state);
+    } else showSheet(state,ease(t,sushiFocusAt,3.58));
   }
 
   function returnCamera(origin, from, t) {
@@ -151,8 +170,9 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
   }
 
   function closeStory() {
+    const {source}=active;
     active=null;
-    onClose();
+    onClose(source);
   }
 
   function finishReturn(state,dt) {
@@ -164,9 +184,10 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
 
   function playMeal(state,dt) {
     const {meal,dish}=state;
+    const previous=meal.time;
     meal.time+=dt;
     if (meal.time<meal.take.duration) {
-      dining.update(meal.take,meal.time,camera);
+      dining.update(meal.take,previous,meal.time,camera);
       return;
     }
     if (!meal.route) {
@@ -185,6 +206,7 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
       stackTop+=Math.max(.10,rise-.047);
     }
     const time=meal.time-meal.take.duration;
+    sounds.cues(previous-meal.take.duration,time,clearingCues);
     const slide=ease(time,.10,1.37);
     meal.route.getPoint(slide,dish.position);
     dish.rotation.y=THREE.MathUtils.lerp(meal.yaw,.10+usedPlates.children.length%3*.06,slide);
@@ -206,10 +228,11 @@ export function createCounterStories(model, camera, renderer, menu, onClose) {
       else if (active.returning) finishReturn(active,dt);
       else {
         if (active.focused && active.aspect===camera.aspect) return false;
+        const previous=active.time;
         if (!active.focused) active.time += dt;
         active.aspect=camera.aspect;
-        if (active.kind==='resume') playPrint(active);
-        else playServing(active);
+        if (active.kind==='resume') playPrint(active,previous);
+        else playServing(active,previous);
         return true;
       }
       return true;
