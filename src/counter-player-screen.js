@@ -44,10 +44,36 @@ function cover(ctx,img,x,y,w,h,fit='cover'){
 }
 
 function timecode(seconds){
-  return `${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
+  const hours=Math.floor(seconds/3600);
+  const minutes=Math.floor(seconds/60)%60;
+  const remainder=String(Math.floor(seconds%60)).padStart(2,'0');
+  return hours ? `${hours}:${String(minutes).padStart(2,'0')}:${remainder}` : `${minutes}:${remainder}`;
 }
 
-function drawTrack(ctx,{track,index,count,playing,muted,seconds},art){
+function scrollingTitle(ctx,text,x,y,available,font,color,elapsed){
+  ctx.save();
+  ctx.font=font;
+  ctx.fillStyle=color;
+  ctx.textAlign='left';
+  ctx.textBaseline='middle';
+  ctx.beginPath();
+  ctx.rect(x,y-20,available,40);
+  ctx.clip();
+  const overflow=ctx.measureText(text).width-available;
+  if(overflow<=0)ctx.fillText(text,x,y);
+  else {
+    const speed=34, hold=1.6;
+    const time=elapsed%(2*hold+overflow/speed);
+    if(time<hold){
+      let prefix=text;
+      while(prefix && ctx.measureText(prefix+'...').width>available)prefix=prefix.slice(0,-1);
+      ctx.fillText(prefix.trimEnd()+'...',x,y);
+    } else ctx.fillText(text,x-Math.min(overflow,(time-hold)*speed),y);
+  }
+  ctx.restore();
+}
+
+function drawTrack(ctx,{track,index,count,playing,muted,seconds,duration,artwork,elapsed,message}){
   shading(ctx,'#e8f0f0','#d5e2e3',0,0,width,height);
   shading(ctx,'#edf5f4','#a9bdbb',0,0,width,headerHeight);
   words(ctx,playing?'▶':'Ⅱ',16,22,'bold 22px Arial',ink);
@@ -55,17 +81,15 @@ function drawTrack(ctx,{track,index,count,playing,muted,seconds},art){
   battery(ctx,ink,true);
   words(ctx,`${index+1} of ${count}`,16,70,'22px Arial');
   if(muted) words(ctx,'Muted',width-16,70,'17px Arial','#576963','right');
-  ctx.fillStyle='#1f2928';
-  ctx.fillRect(16,97,107,107);
-  cover(ctx,art[track.art],18,99,103,103);
-  words(ctx,track.title,139,116,'bold 24px Arial',ink,'left',229);
-  words(ctx,track.artist,139,150,'22px Arial',ink,'left',229);
-  words(ctx,track.album,139,181,'20px Arial','#46554e','left',229);
+  if(artwork.naturalWidth)cover(ctx,artwork,16,91,125,121);
+  scrollingTitle(ctx,track.title,154,137,width-170,'bold 23px Arial',ink,elapsed);
+  words(ctx,track.artist,154,166,'20px Arial','#46554e','left',width-170);
+  if(message)words(ctx,message,154,195,'17px Arial','#46554e','left',width-170);
   shading(ctx,'#b3c0bf','#eff5f3',16,227,width-32,15);
-  const filled=(width-32)*seconds/track.duration;
+  const filled=(width-32)*seconds/duration;
   if(filled>0)shading(ctx,'#8ec7d4','#327986',16,227,filled,15);
   words(ctx,timecode(seconds),16,269,'21px Arial');
-  words(ctx,`−${timecode(track.duration-seconds)}`,width-16,269,'21px Arial',ink,'right');
+  words(ctx,timecode(duration),width-16,269,'21px Arial',ink,'right');
 }
 
 export function createPlayerScreen(art){
@@ -79,8 +103,8 @@ export function createPlayerScreen(art){
   const material=new THREE.MeshBasicMaterial({name:'MP3 backlit LCD',map,toneMapped:false});
 
   function draw(view){
-    const {page,rows,selected,checked,photo,photoIndex,photoCount}=view;
-    if(page==='playing')drawTrack(ctx,view,art);
+    const {page,rows,selected,settingsValues,editingVolume,photo,photoIndex,photoCount}=view;
+    if(page==='playing')drawTrack(ctx,view);
     else {
       if(page==='photos'){
         ctx.fillStyle='#22271f';
@@ -88,20 +112,36 @@ export function createPlayerScreen(art){
         cover(ctx,art[photo],6,headerHeight+5,width-12,height-headerHeight-11,'contain');
       } else {
         shading(ctx,'#e2e2c7','#c5c9ab',0,0,width,height);
-        const rowHeight=rows.length>5 ? 42:45;
-        rows.forEach((label,index)=>{
-          const y=headerHeight+rowHeight*index;
+        if(page==='extras'){
+          words(ctx,'Playback controls',18,89,'bold 24px Arial',ink);
+          words(ctx,'Center · Play / pause',18,127,'21px Arial');
+        }
+        const rowHeight=page==='settings' ? 36 : page==='playlist' ? 42 : 45;
+        const visibleRows=Math.floor((height-headerHeight)/rowHeight);
+        const start=Math.min(Math.max(0,selected-Math.floor(visibleRows/2)),Math.max(0,rows.length-visibleRows));
+        rows.slice(start,start+visibleRows).forEach((entry,offset)=>{
+          const index=start+offset;
+          const y=headerHeight+rowHeight*offset;
           if(index===selected){
             ctx.fillStyle=selection;
             ctx.fillRect(0,y,width,rowHeight);
           }
           const color=index===selected ? '#f3f1d6':ink;
-          words(ctx,label,17,y+rowHeight/2,listFont,color,'left',width-68);
-          if(index===checked || page==='menu' || label==='Back'){
-            const symbol=index===checked ? '✓' : label==='Back' ? '‹' : '›';
+          const label=entry.title ?? entry;
+          if(entry.title)scrollingTitle(ctx,label,17,y+rowHeight/2,width-107,listFont,color,view.elapsed);
+          else words(ctx,label,17,y+rowHeight/2,listFont,color,'left',width-(page==='settings'?111:entry.title?107:82));
+          if(entry.title)words(ctx,entry.source?timecode(Math.round(entry.duration)):'—',width-19,y+rowHeight/2,'20px Arial',color,'right');
+          if(page==='settings' && index>0){
+            const value=settingsValues[index];
+            words(ctx,editingVolume&&index===selected ? `‹ ${value} ›` : value,width-19,y+rowHeight/2,'bold 19px Arial',color,'right');
+          } else if(page==='menu' || label==='Back'){
+            const symbol=label==='Back' ? '‹' : '›';
             words(ctx,symbol,width-19,y+rowHeight/2,'bold 29px Arial',color,'right');
           }
         });
+        if(page==='settings'){
+          words(ctx,editingVolume ? 'Arrows adjust · Center done' : '‹ / › Adjust volume · Center select',16,279,'17px Arial');
+        }
       }
       ctx.fillStyle=paper;
       ctx.fillRect(0,0,width,headerHeight);

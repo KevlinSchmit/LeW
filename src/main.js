@@ -470,7 +470,7 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
     controls.enabled=lookMode;
     clearPointer();
     canvas.focus({preventScroll:true});
-  });
+  },syncSoundButton);
   paintLabel(playerExit.querySelector('canvas'),'Back to Explore',1,'#f6e6c9',0);
   playerExit.addEventListener('click',playerInteraction.dismiss);
   renderer.shadowMap.needsUpdate = true;
@@ -913,7 +913,7 @@ function animate(now) {
     if (chefRestock.update(dt,beltSpeed,introComplete && !overview)) renderer.shadowMap.needsUpdate = true;
     else if (motion) chefIdles.advance(frameSeconds);
   }
-  if (playerInteraction.update(dt,frameSeconds)) renderer.shadowMap.needsUpdate = true;
+  if (playerInteraction.update(dt)) renderer.shadowMap.needsUpdate = true;
   if (!playerActive && !contactActive) {
     if (teaActive) {
       if (teaStory.update(dt)) renderer.shadowMap.needsUpdate = true;
@@ -936,6 +936,7 @@ window.addEventListener('pageshow',event => {
 });
 // Release GPU resources when this document is discarded.
 window.addEventListener('pagehide',() => {
+  playerInteraction?.dispose();
   sounds.dispose();
   controls.dispose();
   counterHover?.dispose();

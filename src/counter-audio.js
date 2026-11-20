@@ -1,23 +1,55 @@
 import recordings from './foley/counter.wav?inline';
 import clips from './foley/clips.json';
 
-const preference='sushi-counter-sound-muted';
-const masterVolume=.28;
+const soundMuteKey='sushi-counter-sound-muted';
+const soundVolumeKey='sushi-counter-sound-control-v2';
+const musicMuteKey='sushi-counter-music-muted';
+const musicVolumeKey='sushi-counter-music-control-v2';
+const defaultVolume=.50;
+const effectsOutput=.56;
+const musicOutput=.14;
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+
+function readPreference(key,fallback){
+  try {
+    const value=localStorage.getItem(key);
+    return value===null ? fallback : JSON.parse(value);
+  } catch { return fallback; }
+}
+
+function savePreference(key,value){
+  try { localStorage.setItem(key,JSON.stringify(value)); } catch {}
+}
+
+function readVolume(key,fallback){
+  const value=readPreference(key,fallback);
+  return Number.isFinite(value) ? clamp(value,0,1) : fallback;
+}
 
 export function createCounterAudio() {
   const Context=window.AudioContext || window.webkitAudioContext;
-  let context, master, buffer, muted=false;
+  let context, master, buffer;
+  let muted=readPreference(soundMuteKey,false)===true;
+  let musicMuted=readPreference(musicMuteKey,false)===true;
+  // Anchor the new midpoint to the mix this listener heard before the update.
+  const effectsMidpoint=readVolume('sushi-counter-sound-volume',.50)*effectsOutput;
+  const musicMidpoint=readVolume('sushi-counter-music-volume',.936)*musicOutput;
+  const level=(control,midpoint,oldMaximum)=>{
+    if(control<=defaultVolume)return 2*control*midpoint;
+    const maximum=Math.min(1,Math.max(oldMaximum,2*midpoint));
+    return midpoint+(2*control-1)*(maximum-midpoint);
+  };
+  let volume=readVolume(soundVolumeKey,defaultVolume);
+  let musicVolume=readVolume(musicVolumeKey,defaultVolume);
   const voices=new Set(), loops=new Map();
-  try { muted=localStorage.getItem(preference)==='true'; } catch {}
 
   function unlock() {
-    if(!Context || muted || document.hidden)return;
+    if(!Context || document.hidden)return;
     try {
       if(!context){
         context=new Context();
         master=context.createGain();
-        master.gain.value=masterVolume;
+        master.gain.value=level(volume,effectsMidpoint,effectsOutput);
         master.connect(context.destination);
         const audioContext=context;
         // Vite inlines the recording into both the hosted page and the offline export.
@@ -111,9 +143,25 @@ export function createCounterAudio() {
 
   function setMuted(next) {
     muted=next;
-    try { localStorage.setItem(preference,String(next)); } catch {}
+    savePreference(soundMuteKey,next);
     if(muted && master)silence();
     if(!muted)unlock();
+  }
+
+  function setVolume(next){
+    volume=clamp(next,0,1);
+    savePreference(soundVolumeKey,volume);
+    if(master)master.gain.setTargetAtTime(level(volume,effectsMidpoint,effectsOutput),context.currentTime,.025);
+  }
+
+  function setMusicVolume(next){
+    musicVolume=clamp(next,0,1);
+    savePreference(musicVolumeKey,musicVolume);
+  }
+
+  function setMusicMuted(next){
+    musicMuted=next;
+    savePreference(musicMuteKey,next);
   }
 
   function cues(before,after,marks) {
@@ -123,7 +171,10 @@ export function createCounterAudio() {
   }
 
   return {
-    supported:Boolean(Context), get muted(){return muted;}, unlock, play, cues, sustain, stop, setMuted,
+    supported:Boolean(Context), get muted(){return muted;}, get volume(){return volume;},
+    get musicMuted(){return musicMuted;}, get musicVolume(){return musicVolume;},
+    get musicLevel(){return level(musicVolume,musicMidpoint,musicOutput);},
+    unlock, play, cues, sustain, stop, setMuted, setVolume, setMusicMuted, setMusicVolume,
     visibility(){if(document.hidden && master)silence();},
     dispose(){if(context)void context.close().catch(()=>{}); master=null;},
   };
