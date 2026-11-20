@@ -99,6 +99,41 @@ function paintWeights(x,y,z,arm,skeleton) {
   return [top.map(e=>e[0]),top.map(e=>e[1]/sum)];
 }
 
+function addThumbnail(arm) {
+  const {bones,points,segments}=arm.digits[0];
+  const {r,taper}=segments[2];
+  const length=local(points[3],arm.side).sub(local(points[2],arm.side));
+  const axis=length.clone().normalize();
+  const radial=new THREE.Vector3(-arm.side,0,0);
+  radial.addScaledVector(axis,-radial.dot(axis)).normalize();
+  const positions=[], indices=[];
+  const sides=14;
+  function vertex(along,angle,thickness) {
+    const radius=(r+taper*along+thickness)/pixelsPerMeter;
+    const position=length.clone().multiplyScalar(along)
+      .addScaledVector(radial.clone().applyAxisAngle(axis,angle),radius);
+    positions.push(...position.toArray());
+  }
+  vertex(.69,0,.30);
+  for(let i=0;i<sides;i++){
+    const angle=2*Math.PI*i/sides;
+    vertex(.69+.255*Math.cos(angle),.62*Math.sin(angle),.16);
+    indices.push(0,i+1,1+(i+1)%sides);
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const nail=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({
+    color:0xc48c72,roughness:.67,side:THREE.DoubleSide,emissive:0x62402d,emissiveIntensity:.19,
+  }));
+  nail.name='Chef thumbnail';
+  nail.userData.noOutline=true;
+  nail.receiveShadow=true;
+  nail.raycast=()=>{};
+  bones[2].add(nail);
+}
+
 export function buildHandSurface(old, arm, skeleton) {
   const resolution=36, extent=60, centerY=36;
   const volume=new MarchingCubes(resolution,old.material,false,false,12000);
@@ -137,6 +172,7 @@ export function buildHandSurface(old, arm, skeleton) {
   hand.frustumCulled=false;
   old.removeFromParent();
   old.geometry.dispose(); raw.dispose(); volume.geometry.dispose();
+  addThumbnail(arm);
   return hand;
 }
 

@@ -5,6 +5,9 @@ import { makeReflectionStudio, makeWoodReflections, refineSurface, makeBottleGla
 import { serviceFloor } from './characters/fish-prep.js';
 import { createSushiChef } from './characters/sushi-chef.js';
 import { startChefAnimation, cycleChefIdles } from './characters/chef-animation.js';
+import { createChefRestock } from './characters/chef-restock.js';
+import { createContactInteraction } from './contact-card.js';
+import { createCounterAudio } from './counter-audio.js';
 import modelURL from 'virtual:sushi-model';
 import { installConveyor, isFrontDish, straightSpan, conveyorHalfWidth } from './conveyor.js';
 import { installIzakayaBackdrop } from './izakaya-backdrop.js';
@@ -31,6 +34,21 @@ const seatShortcuts=canvas.getAttribute('aria-keyshortcuts');
 const hoverLabel = document.querySelector('#object-hover-label');
 const showHoverLabel = createHoverLabel(hoverLabel);
 const app = document.querySelector('#app');
+const sounds = createCounterAudio();
+const soundButton = document.querySelector('#sound');
+soundButton.hidden=!sounds.supported;
+function syncSoundButton() {
+  soundButton.setAttribute('aria-pressed',String(!sounds.muted));
+  soundButton.title=sounds.muted ? 'Enable sound effects' : 'Mute sound effects';
+}
+syncSoundButton();
+for(const gesture of ['pointerdown','click','keydown'])document.addEventListener(gesture,sounds.unlock,true);
+soundButton.addEventListener('click',()=>{
+  if(!introComplete)return;
+  sounds.setMuted(!sounds.muted);
+  syncSoundButton();
+  if(!sounds.muted)sounds.play('interface',.53);
+});
 const explore = document.querySelector('#start-exploring');
 const loading = document.querySelector('#loading');
 const playerExit = document.querySelector('#mp3-exit');
@@ -227,7 +245,7 @@ function renderScene() {
   updateHoverLabel(hovered);
   const canClick = hovered && (hovered.root === deskMenu || hovered.root === teaStory.teapot
     || (!overview && (hovered.root===counterStories.terminal || hovered.root===playerInteraction.player || plates.includes(hovered.root)))
-    || (!overview && hovered.root===experience.column));
+    || (!overview && (hovered.root===experience.column || hovered.root===contact.bell || hovered.root===contact.card)));
   let playerControl=false;
   if (playerActive && pointerOnCanvas) {
     raycaster.setFromCamera(pointer,camera);
@@ -254,15 +272,20 @@ let experience;
 let experienceActive = false;
 let playerInteraction;
 let playerActive = false;
+let contact;
+let contactActive = false;
 let deskMenu;
 let introComplete = false;
 let returnToSeatAfterMenu = false;
 let plateStack;
 let chefMixer;
-let advanceChef;
+let chefIdles;
+let chefRestock;
+let chefPausedForSushi = false;
 let loaded = false;
 let motion = !reducedMotion;
 const conveyorBoostMultiplier = 3;
+const conveyorSpeed = .39;
 let conveyorTravel = 0;
 let conveyorHold;
 let suppressConveyorClick = false;
@@ -333,12 +356,17 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
   replaceCounterTerminal(model);
   const playerParts=addCounterPlayer(model);
   outlineChef(chef, .002);
-  chefMixer = startChefAnimation(chef, chef.userData.sculptRuntime.arms, model.getObjectByName('SUSHI_salmon'));
+  const kitchen = startChefAnimation(chef, chef.userData.sculptRuntime.arms, model.getObjectByName('SUSHI_salmon'));
+  chefMixer = kitchen.mixer;
   const [shaping,slicing,cleaning,adjusting] = chef.animations;
-  advanceChef = cycleChefIdles(chefMixer,[adjusting,cleaning,shaping,slicing]);
+  chefIdles = cycleChefIdles(chefMixer,[adjusting,cleaning,shaping,slicing]);
   const tableware=makeSushiTableware();
   addSushiMenu(model,plates,tableware.dressServing);
   conveyor = installConveyor(model, plates);
+  chefRestock = createChefRestock(chef,kitchen,chefIdles,conveyor,plate=>{
+    counterHover.replaceServing(plate);
+    sounds.play('plateSet',.32,plate.position.x*.05,.96);
+  });
   roomShell = ['RoomRoof','RoomBack','RoomLeft','RoomRight'].map(name=>model.getObjectByName(name));
   const [roof,back,left,right] = roomShell;
   const walnut = back.children.find(m=>m.material?.name.includes('walnut')).material;
@@ -372,7 +400,7 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
   model.add(serviceFloor(model.getObjectByName('Chef prep table'),floorHeight,roomHalfWidth+.3));
   scene.add(model);
   deskMenu = model.children.find(node=>node.name.startsWith('MENU'));
-  menuIntro = createMenuIntro(deskMenu, camera, explore,
+  menuIntro = createMenuIntro(deskMenu, camera, explore, sounds,
     () => {
       app.dataset.intro = 'reading';
       explore.hidden = false;
@@ -389,7 +417,7 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
     });
   plateStack = model.children.find(object=>object.name.startsWith('DISHES'));
   tableware.dressStacks(plateStack);
-  experience = createPlateExperience(plateStack,scene,camera,()=>{
+  experience = createPlateExperience(plateStack,scene,camera,sounds,()=>{
     experienceActive=false;
     introComplete=true;
     app.removeAttribute('data-experience');
@@ -398,10 +426,20 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
     canvas.focus({preventScroll:true});
   });
   prepareEmptyCup(model.children.find(node=>node.name.startsWith('TEACUP')));
+  contact = createContactInteraction(model,camera,chef,kitchen,chefIdles,reducedMotion,sounds,resized=>{
+    contactActive=false;
+    introComplete=true;
+    app.removeAttribute('data-contact');
+    canvas.inert=false;
+    if(resized)resize();
+    controls.enabled=lookMode;
+    clearPointer();
+    canvas.focus({preventScroll:true});
+  });
   counterHover = createCounterHover(model, plates, plateStack, sceneTarget, camera);
   finishMaterial.uniforms.hoverMask.value = counterHover.texture;
   syncCutaway();
-  teaStory = createTeaStory(model, scene, camera, () => {
+  teaStory = createTeaStory(model, scene, camera, sounds, () => {
     teaActive = false;
     introComplete = true;
     app.removeAttribute('data-tea');
@@ -409,15 +447,20 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
     controls.enabled = lookMode;
     canvas.focus({preventScroll:true});
   });
-  counterStories = createCounterStories(model,camera,renderer,deskMenu,() => {
-    counterStoryActive=false;
-    introComplete=true;
-    app.removeAttribute('data-counter-story');
-    canvas.inert=false;
-    controls.enabled=lookMode;
-    canvas.focus({preventScroll:true});
+  counterStories = createCounterStories(model,camera,renderer,deskMenu,sounds,{
+    onSushiFocus() { chefPausedForSushi=true; },
+    onMeal() { chefPausedForSushi=false; },
+    onClose(slot) {
+      counterStoryActive=false;
+      introComplete=true;
+      app.removeAttribute('data-counter-story');
+      canvas.inert=false;
+      controls.enabled=lookMode;
+      canvas.focus({preventScroll:true});
+      if (slot) chefRestock.schedule(slot);
+    },
   });
-  playerInteraction = createPlayerInteraction(playerParts,camera,prints,document.querySelector('#mp3-status'),reducedMotion,(resized)=>{
+  playerInteraction = createPlayerInteraction(playerParts,camera,prints,document.querySelector('#mp3-status'),reducedMotion,sounds,(resized)=>{
     playerActive=false;
     introComplete=true;
     app.removeAttribute('data-mp3');
@@ -463,6 +506,7 @@ updateMotionButton();
 function toggleMotion() {
   if (!introComplete) return;
   motion = !motion;
+  sounds.play(motion?'beltStart':'beltStop',.73);
   if (!motion) endConveyorHold();
   updateMotionButton();
 }
@@ -536,6 +580,7 @@ function resetView() {
 }
 tourButton.addEventListener('click',()=>{
   if (!introComplete) return;
+  sounds.play('interface',.65,.26,overview?.83:1.04);
   if (overview) { resetView(); return; }
   resetView();
   overview=lookMode=controls.enabled=true;
@@ -559,10 +604,14 @@ controls.addEventListener('start',()=>{orbitDragging=true;if(overview)controls.a
 controls.addEventListener('end',()=>{orbitDragging=false;});
 document.querySelector('.brand').addEventListener('click', (event) => {
   event.preventDefault();
-  if (introComplete) resetView();
+  if (introComplete) {
+    sounds.play('interface',.52,0,.88);
+    resetView();
+  }
 });
 document.querySelector('#look').addEventListener('click', () => {
   if (!introComplete) return;
+  sounds.play('interface',.60,0,lookMode?.88:1.10);
   if (overview) resetView();
   lookMode = !lookMode;
   controls.enabled = lookMode;
@@ -587,6 +636,7 @@ document.querySelector('#fullscreen').addEventListener('click',async () => {
   } catch { showHint('Fullscreen is not available in this view'); }
 });
 document.addEventListener('fullscreenchange',() => {
+  sounds.play('interface',.63,.34,document.fullscreenElement?1.10:.83);
   document.querySelector('#fullscreen').setAttribute('aria-label',document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen');
 });
 canvas.addEventListener('pointermove',(event) => {
@@ -605,7 +655,7 @@ function pickAt(clientX,clientY){
   if(!introComplete)return null;
   setPickRay(clientX,clientY);
   const hit=raycaster.intersectObject(window.__sushi.model,true).find(({object})=>{
-    for (let part=object; part; part=part.parent) if (!part.visible) return false;
+    for (let part=object; part; part=part.parent) if (!part.visible || part.userData.chefCarried) return false;
     if (object.userData.sushiCover && !plates.includes(object.parent)) return false;
     return true;
   });
@@ -680,6 +730,15 @@ function openPlayer() {
   clearPointer();
   canvas.focus({preventScroll:true});
 }
+function openContact(fromTable=false) {
+  if(!introComplete || overview || !contact.begin(fromTable))return;
+  contactActive=true;
+  introComplete=false;
+  app.dataset.contact='';
+  canvas.inert=true;
+  controls.enabled=false;
+  clearPointer();
+}
 hoverLabel.addEventListener('click',openExperience);
 hoverLabel.addEventListener('pointerleave',clearPointer);
 function pointerTravel(event) {
@@ -689,7 +748,11 @@ function endConveyorHold(event) {
   if (!conveyorHold || (event?.pointerId!==undefined && event.pointerId!==conveyorHold.id)) return;
   const {boosted}=conveyorHold;
   conveyorHold=undefined;
-  if (boosted) updateMotionButton();
+  if (boosted) {
+    sounds.stop('belt',.15);
+    if(motion)sounds.play('beltStop',.29,0,1.12);
+    updateMotionButton();
+  }
 }
 canvas.addEventListener('pointerdown', event => {
   if (!event.isPrimary || event.button!==0) return;
@@ -728,6 +791,7 @@ canvas.addEventListener('click',event=>{
   if (picked === deskMenu) reopenMenu();
   else if (picked === teaStory.teapot) pourTea();
   else if (!overview && picked === counterStories.terminal) startCounterStory('resume');
+  else if (picked === contact.bell || picked === contact.card) openContact(picked===contact.card);
   else if (picked === playerInteraction.player) openPlayer();
   else if (!overview && plates.includes(picked) && isFrontDish(picked)) startCounterStory('sushi',picked);
   else if (picked === experience.column) openExperience();
@@ -746,6 +810,13 @@ window.addEventListener('blur',()=>{
   clearPointer();
 });
 window.addEventListener('keydown',(event) => {
+  if(contactActive) {
+    if(event.code==='Escape') {
+      event.preventDefault();
+      contact.dismiss();
+    }
+    return;
+  }
   if (playerActive) {
     if (event.code==='Escape' || document.activeElement===canvas) playerInteraction.key(event);
     return;
@@ -765,7 +836,10 @@ window.addEventListener('keydown',(event) => {
     return;
   }
   if (!introComplete) return;
-  if (event.code === 'Escape') resetView();
+  if (event.code === 'Escape') {
+    if(lookMode || overview)sounds.play('interface',.62,0,.88);
+    resetView();
+  }
   if (overview && ['ArrowLeft','ArrowRight'].includes(event.code)) {
     event.preventDefault();
     controls.autoRotate=false;
@@ -782,11 +856,12 @@ window.addEventListener('keydown',(event) => {
   if (event.code === 'KeyT' && document.activeElement === canvas) pourTea();
   if (event.code === 'KeyE' && document.activeElement === canvas) openExperience();
   if (event.code === 'KeyM' && document.activeElement === canvas) openPlayer();
+  if (event.code === 'KeyC' && document.activeElement === canvas) openContact();
 });
 function resize() {
   camera.aspect = innerWidth/innerHeight;
   // Portrait retains the entire counter, rather than silently cropping its objects.
-  const focused=teaActive || counterStoryActive || experienceActive || playerActive;
+  const focused=teaActive || counterStoryActive || experienceActive || playerActive || contactActive;
   if (!lookMode && !focused) seatedPose();
   else if (!focused) {
     camera.fov = camera.aspect<1 ? (overview ? 70 : 69) : (overview ? 48 : 38);
@@ -805,6 +880,7 @@ window.addEventListener('resize',resize);
 resize();
 let previous = performance.now();
 document.addEventListener('visibilitychange',()=>{
+  sounds.visibility();
   endConveyorHold();
   previous=performance.now();
 });
@@ -816,18 +892,29 @@ function animate(now) {
   if (!introComplete) endConveyorHold();
   if (conveyorHold && !conveyorHold.boosted && now-conveyorHold.started>=420) {
     conveyorHold.boosted=true;
+    conveyorHold.boostedAt=now;
     suppressConveyorClick=true;
+    sounds.play('beltStart',.33);
     updateMotionButton();
   }
+  const beltSpeed=motion ? conveyorSpeed*(conveyorHold?.boosted ? conveyorBoostMultiplier : 1) : 0;
+  if(conveyorHold?.boosted){
+    const ramp=Math.min(1,(now-conveyorHold.boostedAt)/420);
+    sounds.sustain('belt',.16,0,.94+.27*ramp);
+  }
   if (motion) {
-    advanceChef(frameSeconds);
-    conveyorTravel += dt*.39*(conveyorHold?.boosted ? conveyorBoostMultiplier : 1);
+    conveyorTravel += dt*beltSpeed;
     conveyor.update(conveyorTravel);
     // Every rendered moving pose needs its own matching shadow maps.
     renderer.shadowMap.needsUpdate = true;
   }
+  if (contact.update(dt,!chefRestock.busy)) renderer.shadowMap.needsUpdate = true;
+  if (!chefPausedForSushi && !contact.ownsChef) {
+    if (chefRestock.update(dt,beltSpeed,introComplete && !overview)) renderer.shadowMap.needsUpdate = true;
+    else if (motion) chefIdles.advance(frameSeconds);
+  }
   if (playerInteraction.update(dt,frameSeconds)) renderer.shadowMap.needsUpdate = true;
-  if (!playerActive) {
+  if (!playerActive && !contactActive) {
     if (teaActive) {
       if (teaStory.update(dt)) renderer.shadowMap.needsUpdate = true;
     } else if (counterStoryActive) {
@@ -840,7 +927,7 @@ function animate(now) {
     else followSeatPointer(dt);
   }
   if (overview) syncCutaway();
-  if (introComplete && conveyor.refill(camera)) renderer.shadowMap.needsUpdate = true;
+  if (introComplete && conveyor.refill(camera,chefRestock.reserves)) renderer.shadowMap.needsUpdate = true;
   renderScene();
 }
 requestAnimationFrame(animate);
@@ -849,6 +936,7 @@ window.addEventListener('pageshow',event => {
 });
 // Release GPU resources when this document is discarded.
 window.addEventListener('pagehide',() => {
+  sounds.dispose();
   controls.dispose();
   counterHover?.dispose();
   menuIntro?.dispose();

@@ -16,6 +16,8 @@ const paperWidthPx = 512;
 const paperHeightPx = 400;
 const firstLeafAngles = [.38, .24, .13];
 const { smootherstep, lerp, clamp } = THREE.MathUtils;
+const openingCues=[[.24,'page',.56,-.14],[.49,'pageSoft',.46,.13]];
+const closingCues=[[.20,'pageSoft',.46,.14],[.47,'page',.40,-.13],[1.34,'bookClose',.63,-.04]];
 
 // The export merges both covers and all trim using the same material. Cut in book space
 // so both moving halves retain the original triangles, normals and UVs at the desk.
@@ -242,7 +244,7 @@ function sheetTracks(sheets, times, opening, startingAngles = firstLeafAngles) {
   });
 }
 
-export function createMenuIntro(book, camera, button, onReady, onFinish) {
+export function createMenuIntro(book, camera, button, sounds, onReady, onFinish) {
   const desk = { position: book.position.clone(), quaternion: book.quaternion.clone() };
   const { front, back, leaves, spine, bound, painted, right, blank, print, sheets, light } = rigBook(book);
   front.rotation.z = leaves.rotation.z = initialCover;
@@ -405,6 +407,7 @@ export function createMenuIntro(book, camera, button, onReady, onFinish) {
     painted.material.emissiveIntensity = 0;
     book.remove(light, light.target);
     phase = 'desk';
+    sounds.play('bookSet',.75);
     book.updateWorldMatrix(true, true);
     onFinish();
   }
@@ -434,6 +437,7 @@ export function createMenuIntro(book, camera, button, onReady, onFinish) {
 
   function reopen() {
     if (phase !== 'desk') return false;
+    sounds.play('bookLift',.72);
     phase = 'lifting';
     label = 'Back to Explore';
     button.setAttribute('aria-label', label.toUpperCase() + ' →');
@@ -519,7 +523,10 @@ export function createMenuIntro(book, camera, button, onReady, onFinish) {
   fit();
   function update(seconds) {
     if (!action?.isRunning()) return false;
+    const previous=action.time;
     mixer.update(phase === 'opening' ? Math.min(seconds, .06) : seconds);
+    if(phase==='opening')sounds.cues(previous,action.time,openingCues);
+    if(phase==='placing')sounds.cues(previous,action.time,closingCues);
     // The mixer applies its final sampled bindings after dispatching 'finished'.
     if (finished) {
       mixer.uncacheRoot(book);

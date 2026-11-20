@@ -152,7 +152,7 @@ function makeKnife(stage) {
 
 // Locations are in worktop space. The board rests on a low shelf behind
 // the bench, with clear standing room between the shelf and the chef.
-export const fishWell={x:0,z:-1.42,wellZ:-3.84,width:11.0,depth:9.04,boardY:-4.60};
+export const fishWell={x:-2.95,z:-1.42,wellZ:-3.84,width:16.9,depth:9.04,boardY:-4.60};
 export const boardGrip={x:1.38,y:.10,z:.13};
 
 export function serviceFloor(table,floorHeight,halfWidth=20.4) {
@@ -184,6 +184,7 @@ export function makeFishStation(chef,table) {
   const rack=material(0x775437), lining=material(0x575a53,.80);
   const {width,depth,boardY,wellZ:z}=fishWell;
   const well=group(stage,'Prep bay lining');
+  well.position.x=fishWell.x;
   const floorY=-1.14-table.position.y;
   const footing=chef.position.y-table.position.y, h=floorY-footing;
   box(well,lining,0,footing-.07,z,width,.14,depth);

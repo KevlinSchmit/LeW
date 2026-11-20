@@ -12,8 +12,10 @@ const exitDuration = 1.12;
 const titleWidth = 304;
 const titleHeight = 89;
 const titleScale = 1.26;
+const pourCues=[[1.36,'potLift',.47,-.37],[pourStart,'teaPour',.59,-.33],
+  [5.57,'potSet',.56,-.44],[6.23,'page',.27,-.13]];
 
-export function createTeaStory(model, scene, camera, onClose) {
+export function createTeaStory(model, scene, camera, sounds, onClose) {
   const teapot = model.children.find(part => part.name.startsWith('TEAPOT'));
   const cup = model.children.find(part => part.name.startsWith('TEACUP'));
   const water = createTeaWater(cup, scene);
@@ -56,6 +58,7 @@ export function createTeaStory(model, scene, camera, onClose) {
     camera.getWorldDirection(startLook).multiplyScalar(startCamera.position.distanceTo(firstShot.look)).add(camera.position);
     time = elapsed = fill = 0;
     phase = 'pouring';
+    sounds.play('interface',.36,-.47);
     return true;
   }
 
@@ -64,6 +67,9 @@ export function createTeaStory(model, scene, camera, onClose) {
     exitCamera = snapshot();
     exitPot = {position: teapot.position.clone(), rotation: teapot.quaternion.clone()};
     exitFill = fill;
+    sounds.stop('teaPour');
+    if(!chapter.hidden)sounds.play('paperSlide',.43,-.17,1.08);
+    else sounds.play('interface',.42,-.39,.92);
     phase = 'returning';
     elapsed = 0;
     chapter.hidden = title.hidden = true;
@@ -158,12 +164,14 @@ export function createTeaStory(model, scene, camera, onClose) {
       teapot.quaternion.copy(exitPot.rotation).slerp(rest.rotation, progress);
       water.fillSurface(exitFill*(1-smootherstep(elapsed,.49,exitDuration)), time+elapsed, 0);
       if (elapsed >= exitDuration) {
+        if(exitPot.position.distanceToSquared(rest.position)>.02)sounds.play('potSet',.63,-.49);
         water.stop();
         phase = 'idle';
         onClose();
       }
       return true;
     }
+    const previous=time;
     time += dt;
     composeCamera(time);
     composePot(time);
@@ -172,6 +180,7 @@ export function createTeaStory(model, scene, camera, onClose) {
     water.fillSurface(fill,time,agitation);
     teapot.localToWorld(streamOrigin.copy(spoutTip));
     water.pour(streamOrigin, clamp((time-pourStart)/.16,0,1), clamp((time-pourEnd)/.17,0,1));
+    sounds.cues(previous,time,pourCues);
     if (time > 6.15) {
       chapter.hidden = false;
       chapter.style.setProperty('--paper-progress', smootherstep(time,6.19,6.96));

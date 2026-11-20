@@ -50,14 +50,22 @@ export function solveArm(arm, target, pad, wristPitch, palmFacing, release) {
 
 // Constrain a chosen point inside the grip to the tool handle throughout a draw.
 export function solveGrip(arm, target, socket, hand, elbowGuide) {
-  const wrist=target.clone().sub(socket.clone().applyQuaternion(hand));
-  const axis=wrist.sub(arm.shoulder), d=axis.length();
-  axis.divideScalar(d);
+  return solveWrist(arm,target.clone().sub(socket.clone().applyQuaternion(hand)),elbowGuide,()=>hand,false);
+}
+
+// Solve the elbow first so a hand can follow the actual forearm direction.
+export function solveWrist(arm,target,elbowGuide,orientHand,limitReach=true) {
+  const axis=target.clone().sub(arm.shoulder);
+  const requested=axis.length();
+  const d=limitReach ? THREE.MathUtils.clamp(requested,Math.abs(arm.upper.length()-arm.lower.length())+.001,
+    (arm.upper.length()+arm.lower.length())*.976) : requested;
+  axis.divideScalar(requested);
   const along=(arm.upper.lengthSq()-arm.lower.lengthSq()+d*d)/(2*d);
   const pole=elbowGuide?.clone() ?? new THREE.Vector3(arm.side*.23,-1,.16);
   pole.addScaledVector(axis,-pole.dot(axis)).normalize();
   const upper=axis.clone().multiplyScalar(along).addScaledVector(pole,Math.sqrt(Math.max(0,arm.upper.lengthSq()-along*along)));
   const lower=axis.clone().multiplyScalar(d).sub(upper);
+  const hand=orientHand(lower);
   const shoulder=frame(upper,lower).multiply(frame(arm.upper,forward).invert());
   const flex=new THREE.Quaternion().setFromUnitVectors(arm.lower.clone().normalize(),lower.clone().applyQuaternion(shoulder.clone().invert()).normalize());
   const elbowWorld=shoulder.clone().multiply(flex);
@@ -66,4 +74,38 @@ export function solveGrip(arm, target, socket, hand, elbowGuide) {
   const roll=elbowWorld.invert().multiply(forearm);
   const wristRot=forearm.clone().invert().multiply(hand);
   return [shoulder,identity.clone().slerp(flex,.5),flex,identity.clone().slerp(roll,.16),roll,wristRot];
+}
+
+export function solveTrayGrip(arm,target,pad,wristPitch,turn,elbowGuide){
+  const shaft=arm.lower.clone().normalize();
+  const wrist=new THREE.Quaternion().setFromUnitVectors(down,shaft)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),wristPitch));
+  const pronation=new THREE.Quaternion().setFromAxisAngle(shaft,turn);
+  // Treat the wrist and finger pad as part of the forearm for the reach solve.
+  const forearmTip=arm.lower.clone().add(pad.clone().applyQuaternion(wrist)).applyQuaternion(pronation);
+  const axis=target.clone().sub(arm.shoulder);
+  const requested=axis.length(), upperLength=arm.upper.length(), lowerLength=forearmTip.length();
+  axis.divideScalar(requested);
+  const near=Math.abs(upperLength-lowerLength)+.001;
+  const far=(upperLength+lowerLength)*.984;
+  const distance=THREE.MathUtils.clamp(requested,near,far);
+  const along=(upperLength**2-lowerLength**2+distance**2)/(2*distance);
+  const pole=elbowGuide.clone();
+  pole.addScaledVector(axis,-pole.dot(axis)).normalize();
+  const upper=axis.clone().multiplyScalar(along)
+    .addScaledVector(pole,Math.sqrt(Math.max(0,upperLength**2-along**2)));
+  const elbowToPad=axis.multiplyScalar(distance).sub(upper);
+  // Use the elbow's bend plane as the roll reference through the entire lift.
+  const forearm=frame(elbowToPad,upper.clone().negate()).multiply(frame(forearmTip,forward).invert());
+  const lower=arm.lower.clone().applyQuaternion(forearm);
+  const shoulder=frame(upper,lower).multiply(frame(arm.upper,forward).invert());
+  const flex=new THREE.Quaternion().setFromUnitVectors(shaft,lower.clone().applyQuaternion(shoulder.clone().invert()).normalize());
+  const elbow=shoulder.clone().multiply(flex);
+  const roll=elbow.invert().multiply(forearm);
+  return {
+    angles:[shoulder,identity.clone().slerp(flex,.5),flex,
+      new THREE.Quaternion().setFromAxisAngle(shaft,turn*.16),
+      roll.multiply(pronation),wrist],
+    outside:Math.abs(requested-distance)>.00001,
+  };
 }
