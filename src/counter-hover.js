@@ -26,11 +26,11 @@ export function createCounterHover(model, plates, plateStack, sceneTarget, camer
   register(null, model.children.filter(part => /^Teapot_.*coaster/.test(part.name)), noOutline);
   register(null, [root('TEACUP')]);
   register(null, model.children.filter(part => /^Tea_(cup_wooden_coaster|coaster_lip)/.test(part.name)), noOutline);
-  register(null, [root('SAUCE_DISH')]);
+  register(null, [root('SAUCE_DISH')], noOutline);
   register('Directory', [root('MENU')]);
   const chopsticks = root('CHOPSTICKS');
   const sticks = chopsticks.children.find(part => part.material?.name.includes('End-grain & bamboo'));
-  register(null, [sticks]);
+  register(null, [sticks], noOutline);
   register(null, chopsticks.children.filter(part => part !== sticks), noOutline);
   register('Contact', [root('BELL')]);
   const card=root('Contact card');

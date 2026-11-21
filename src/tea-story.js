@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import clips from './foley/clips.json';
 import { createTeaWater } from './tea-water.js';
 import { drawMenuInk, menuInkWidth } from './menu-lettering.js';
 import { applyTeaPaperStock } from './tea-paper.js';
@@ -48,7 +49,10 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
   const overhead = {position: v(-4.35, 6.70, 5.97), look: v(-5.88, 1.24, 3.68)};
   const readingShot = {position: v(-4.63, 5.60, 4.76), look: v(-4.92, 1.30, 3.98)};
   const startLook = v(0, 0, 0);
-  let phase = 'idle', time = 0, elapsed = 0, fill = 0, startCamera, exitCamera, exitPot, exitFill;
+  let phase = 'idle', time = 0, elapsed = 0, fill = 0, startCamera, exitCamera, exitPot;
+  let initialFill=0, targetFill=0, flowEnd=pourEnd;
+  const cupRest=cup.position.clone(), cupRotation=cup.quaternion.clone();
+  const drinkTarget=v(0,0,0), drinkRotation=new THREE.Quaternion(), parentRotation=new THREE.Quaternion();
   let titleDensity;
 
   const snapshot = () => ({position: camera.position.clone(), rotation: camera.quaternion.clone(), fov: camera.fov});
@@ -56,17 +60,64 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
     if (phase !== 'idle') return false;
     startCamera = snapshot();
     camera.getWorldDirection(startLook).multiplyScalar(startCamera.position.distanceTo(firstShot.look)).add(camera.position);
-    time = elapsed = fill = 0;
+    time = elapsed = 0;
+    initialFill=fill;
+    targetFill=fill<.90 ? .90 : 1;
+    flowEnd=pourStart+(pourEnd-pourStart)*(targetFill-fill)/.90;
     phase = 'pouring';
     sounds.play('interface',.36,-.47);
     return true;
   }
 
+  function drink(){
+    if(phase!=='idle')return false;
+    phase='drinking';
+    initialFill=fill;
+    elapsed=0;
+    sounds.play('potLift',.28,-.1);
+    return true;
+  }
+
+  function updateDrink(dt){
+    const before=elapsed;
+    elapsed+=dt;
+    const hasTea=initialFill>.001;
+    const sipStart=.86, sipEnd=sipStart+clips.sip[1];
+    const lowerAt=hasTea?sipEnd+.12:2.58;
+    const finishAt=lowerAt+.88;
+    const lift=smootherstep(elapsed,0,.85)*(1-smootherstep(elapsed,lowerAt,finishAt));
+    const sip=hasTea?smootherstep(elapsed,sipStart,sipEnd):0;
+    const shakeTime=clamp((elapsed-1.77)/.70,0,1);
+    const shake=hasTea?0:Math.sin(2*Math.PI*shakeTime)*Math.sin(Math.PI*shakeTime)**2;
+    const tangent=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+    const scale=cup.getWorldScale(mix).x;
+    const distance=scale*1.22/(tangent*Math.min(1,camera.aspect));
+    // Present the empty rim near screen center so the ceramic bottom stays visible.
+    const targetY=hasTea?-distance*tangent*.63-.52*scale:-distance*tangent*.18-.42*scale;
+    drinkTarget.set(.12*scale*shake,targetY,-distance)
+      .applyQuaternion(camera.quaternion).add(camera.position);
+    cup.parent.worldToLocal(drinkTarget);
+    cup.position.copy(cupRest).lerp(drinkTarget,lift);
+    cup.position.y+=.24*scale*Math.sin(lift*Math.PI);
+    drinkRotation.setFromEuler(new THREE.Euler(hasTea?.30+.51*sip:1.24,0,.18*shake))
+      .premultiply(camera.quaternion).premultiply(cup.parent.getWorldQuaternion(parentRotation).invert());
+    cup.quaternion.copy(cupRotation).slerp(drinkRotation,lift);
+    fill=initialFill*(1-sip);
+    water.fillSurface(fill,elapsed,0);
+    if(hasTea && before<sipStart && elapsed>=sipStart)sounds.play('sip',.92,0);
+    if(elapsed>=finishAt){
+      sounds.play('potSet',.29,-.16);
+      phase='idle';
+      onClose();
+    }
+    return true;
+  }
+
   function dismiss() {
-    if (phase === 'idle' || phase === 'returning') return;
+    if (phase === 'idle' || phase === 'drinking' || phase === 'returning') return;
     exitCamera = snapshot();
     exitPot = {position: teapot.position.clone(), rotation: teapot.quaternion.clone()};
-    exitFill = fill;
+
     sounds.stop('teaPour');
     if(!chapter.hidden)sounds.play('paperSlide',.43,-.17,1.08);
     else sounds.play('interface',.42,-.39,.92);
@@ -146,6 +197,7 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
 
   function update(dt) {
     if (phase === 'idle') return false;
+    if (phase === 'drinking') return updateDrink(dt);
     if (phase === 'reading') {
       // Keep the settled composition responsive when the viewport changes.
       composeCamera(time);
@@ -162,10 +214,10 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
       camera.updateMatrixWorld();
       teapot.position.copy(exitPot.position).lerp(rest.position, progress);
       teapot.quaternion.copy(exitPot.rotation).slerp(rest.rotation, progress);
-      water.fillSurface(exitFill*(1-smootherstep(elapsed,.49,exitDuration)), time+elapsed, 0);
+      water.fillSurface(fill, time+elapsed, 0);
       if (elapsed >= exitDuration) {
         if(exitPot.position.distanceToSquared(rest.position)>.02)sounds.play('potSet',.63,-.49);
-        water.stop();
+
         phase = 'idle';
         onClose();
       }
@@ -174,13 +226,17 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
     const previous=time;
     time += dt;
     composeCamera(time);
-    composePot(time);
-    fill = clamp((time-pourStart-.13)/(pourEnd-pourStart),0,1);
-    const agitation = smootherstep(time,pourStart+.14,pourStart+.4)*(1-smootherstep(time,pourEnd,pourEnd+.83));
-    water.fillSurface(fill,time,agitation);
+    const amount=targetFill-initialFill;
+    if(amount>.001)composePot(time<=flowEnd?time:Math.min(time+pourEnd-flowEnd,5.60));
+    fill = lerp(initialFill,targetFill,clamp((time-pourStart-.035)/Math.max(.01,flowEnd-pourStart),0,1));
+    const agitation = smootherstep(time,pourStart+.14,pourStart+.4)*(1-smootherstep(time,flowEnd,flowEnd+.60));
+    water.fillSurface(fill,time,amount>.001?agitation:0);
     teapot.localToWorld(streamOrigin.copy(spoutTip));
-    water.pour(streamOrigin, clamp((time-pourStart)/.16,0,1), clamp((time-pourEnd)/.17,0,1));
-    sounds.cues(previous,time,pourCues);
+    water.pour(streamOrigin, amount>.001 && time>=pourStart ? clamp((time-pourStart)/.10,0,1) : 0, clamp((time-flowEnd)/.12,0,1));
+    if(amount>.001){
+      sounds.cues(previous,time,pourCues);
+      if(previous<flowEnd && time>=flowEnd)sounds.stop('teaPour',.05);
+    }
     if (time > 6.15) {
       chapter.hidden = false;
       chapter.style.setProperty('--paper-progress', smootherstep(time,6.19,6.96));
@@ -193,7 +249,7 @@ export function createTeaStory(model, scene, camera, sounds, onClose) {
     }
     return true;
   }
-  return {teapot, begin, dismiss, update,
-    get pouring() {return phase==='pouring' && water.flowingFromLip && time<=pourEnd;},
+  return {teapot, cup, drink, get hasTea(){return fill>.001;}, begin, dismiss, update,
+    get pouring() {return phase==='pouring' && water.flowingFromLip && time<=flowEnd;},
     outlet: streamOrigin, lipEnd:water.lipEnd};
 }

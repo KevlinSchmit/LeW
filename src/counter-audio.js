@@ -1,7 +1,6 @@
 import recordings from './foley/counter.wav?inline';
 import clips from './foley/clips.json';
 
-const soundMuteKey='sushi-counter-sound-muted';
 const soundVolumeKey='sushi-counter-sound-control-v2';
 const musicMuteKey='sushi-counter-music-muted';
 const musicVolumeKey='sushi-counter-music-control-v2';
@@ -29,7 +28,7 @@ function readVolume(key,fallback){
 export function createCounterAudio() {
   const Context=window.AudioContext || window.webkitAudioContext;
   let context, master, buffer;
-  let muted=readPreference(soundMuteKey,false)===true;
+  let muted=false, allMuted=false;
   let musicMuted=readPreference(musicMuteKey,false)===true;
   // Anchor the new midpoint to the mix this listener heard before the update.
   const effectsMidpoint=readVolume('sushi-counter-sound-volume',.50)*effectsOutput;
@@ -95,7 +94,7 @@ export function createCounterAudio() {
   }
 
   function play(name,volume=1,pan=0,rate=1) {
-    if(!master || !buffer || muted || document.hidden || voices.size>=12)return;
+    if(!master || !buffer || muted || allMuted || document.hidden || voices.size>=12)return;
     launch(name,volume,pan,rate,false);
   }
 
@@ -116,7 +115,7 @@ export function createCounterAudio() {
   }
 
   function sustain(name,volume,pan=0,rate=1) {
-    if(!master || !buffer || muted || document.hidden || volume<=.001){
+    if(!master || !buffer || muted || allMuted || document.hidden || volume<=.001){
       stop(name);
       return;
     }
@@ -143,7 +142,6 @@ export function createCounterAudio() {
 
   function setMuted(next) {
     muted=next;
-    savePreference(soundMuteKey,next);
     if(muted && master)silence();
     if(!muted)unlock();
   }
@@ -171,6 +169,12 @@ export function createCounterAudio() {
   }
 
   return {
+    get allMuted(){return allMuted;},
+    toggleAllMute(){
+      allMuted=!allMuted;
+      if(allMuted)silence();
+      else unlock();
+    },
     supported:Boolean(Context), get muted(){return muted;}, get volume(){return volume;},
     get musicMuted(){return musicMuted;}, get musicVolume(){return musicVolume;},
     get musicLevel(){return level(musicVolume,musicMidpoint,musicOutput);},

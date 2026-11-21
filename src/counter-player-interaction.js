@@ -17,7 +17,7 @@ const wrap=(index,count)=>(index+count)%count;
 const ease=THREE.MathUtils.smootherstep;
 const focusFov=38;
 
-export function createPlayerInteraction(parts,camera,art,status,reducedMotion,sounds,onClose,onEffectsChange){
+export function createPlayerInteraction(parts,camera,art,status,reducedMotion,sounds,onClose){
   const {player,housing,display,wheel,pressWheel}=parts;
   const screen=createPlayerScreen(art);
 
@@ -41,7 +41,7 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,so
 
   function syncVolume(){
     music.volume=sounds.musicLevel;
-    music.muted=sounds.musicMuted;
+    music.muted=sounds.allMuted || sounds.musicMuted;
   }
   const startupEvents=['click','keydown'];
   let pendingStart=true;
@@ -107,9 +107,9 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,so
     view.elapsed=(performance.now()-pageSince)/1000;
     view.rows={menu:sections,playlist:playlistRows,settings:volumeOptions}[view.page] ?? [];
     view.selected={menu:sectionIndex,playlist:playlistIndex,settings:volumeIndex}[view.page] ?? -1;
-    view.muted=sounds.musicMuted;
+    view.muted=sounds.allMuted || sounds.musicMuted;
     view.settingsValues=['',percent(sounds.musicVolume),percent(sounds.volume),
-      sounds.musicMuted?'On':'Off',sounds.muted?'On':'Off',sounds.musicMuted&&sounds.muted?'On':'Off'];
+      sounds.musicMuted?'On':'Off',sounds.muted?'On':'Off',sounds.allMuted?'On':'Off'];
     view.editingVolume=editingVolume;
     screen.draw(view);
     if(!announce || !active)return;
@@ -167,13 +167,9 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,so
     else if(index===musicMuteRow){sounds.setMusicMuted(!sounds.musicMuted);syncVolume();}
     else if(index===effectsMuteRow){
       sounds.setMuted(!sounds.muted);
-      onEffectsChange();
     } else if(index===bothMuteRow){
-      const mute=!(sounds.musicMuted && sounds.muted);
-      sounds.setMusicMuted(mute);
+      sounds.toggleAllMute();
       syncVolume();
-      sounds.setMuted(mute);
-      onEffectsChange();
     }
   }
 
@@ -324,5 +320,5 @@ export function createPlayerInteraction(parts,camera,art,status,reducedMotion,so
     return shadowChanged;
   }
 
-  return {player,begin,dismiss,click,key,canPoint,update,dispose(){cancelStartup();music.pause();document.removeEventListener('visibilitychange',visibilityChanged);}};
+  return {player,begin,dismiss,click,key,canPoint,update,syncMute(){syncVolume();redraw();},dispose(){cancelStartup();music.pause();document.removeEventListener('visibilitychange',visibilityChanged);}};
 }

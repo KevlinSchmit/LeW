@@ -62,24 +62,6 @@ function wasabiPaint() {
   });
 }
 
-function darkFlutes() {
-  return paint(128,80,(ctx,w,h)=>{
-    const tone=ctx.createLinearGradient(0,0,0,h);
-    tone.addColorStop(0,'#35332b');
-    tone.addColorStop(.24,'#242423');
-    tone.addColorStop(.86,'#161817');
-    tone.addColorStop(1,'#292925');
-    ctx.fillStyle=tone;
-    ctx.fillRect(0,0,w,h);
-    for(let i=0;i<32;i++){
-      ctx.fillStyle='rgba(86,84,74,.52)';
-      ctx.fillRect(i*4,6,1,65);
-      ctx.fillStyle='rgba(10,10,10,.38)';
-      ctx.fillRect(i*4+2,6,1,65);
-    }
-  });
-}
-
 function lidMark() {
   return paint(96,48,(ctx,w,h)=>{
     ctx.fillStyle='#e7dbc0';
@@ -119,22 +101,34 @@ function placement(parent,name,x,z){
   return group;
 }
 
-function wasabiJar(group,glass){
+function wasabiJar(group){
   const pasteMap=wasabiPaint();
   const filling=matte('Grated wasabi paste',0xe7ebce,pasteMap,.25);
   turn(group,'Wasabi filling',[[0,.087],[.483,.087],[.501,.20],[.502,.631],
     [.480,.709],[.39,.733],[.20,.704],[0,.713]],filling,18);
-  turn(group,'Wasabi jar glass',[[0,0],[.449,0],[.503,.042],[.547,.124],[.553,.65],
-    [.532,.749],[.513,.800],[.491,.801],[.484,.745],[.515,.63],[.512,.136],[.485,.089],[0,.089]],glass,20);
-  const cap=matte('Black ribbed wasabi lid',0xffffff,darkFlutes());
-  turn(group,'Black wasabi screw cap',[[0,.749],[.521,.749],[.558,.772],
-    [.561,.933],[.533,.980],[.469,.999],[0,.999]],cap,20);
-  turn(group,'Wasabi jar dark foot seam',[[.484,.036],[.506,.045],[.503,.064],[.481,.070]],
-    new THREE.MeshBasicMaterial({color:0x332c19}),20);
+  // A thick, open salt cellar with a glazed inner wall and a recessed foot.
+  const glaze=matte('Wasabi cellar · pale celadon',0xcbd2b8);
+  glaze.roughness=.32;
+  turn(group,'Open wasabi cellar',[[0,0],[.46,0],[.53,.04],[.59,.17],[.62,.55],
+    [.615,.75],[.595,.82],[.535,.82],[.523,.76],[.51,.19],[.46,.095],[0,.095]],glaze,48);
+  // Cut a U-shaped passage through the lid all the way to its front edge.
+  const outline=new THREE.Shape();
+  const radius=.625,slot=.095,angle=Math.asin(slot/radius);
+  outline.absarc(0,0,radius,-Math.PI/2+angle,1.5*Math.PI-angle,false);
+  outline.lineTo(-slot,-.27);
+  outline.absarc(0,-.27,slot,Math.PI,0,true);
+  outline.closePath();
+  const lidGeometry=new THREE.ExtrudeGeometry(outline,{depth:.105,bevelEnabled:true,
+    bevelSize:.009,bevelThickness:.009,bevelSegments:2,curveSegments:36});
+  lidGeometry.rotateX(-Math.PI/2);
+  lidGeometry.translate(0,.835,0);
+  const cap=new THREE.Mesh(lidGeometry,matte('Salt cellar · wood lid',0xab8967,bambooGrain()));
+  cap.name='Notched wasabi lid';
+  group.add(cap);
   const label=new THREE.Mesh(new THREE.PlaneGeometry(.465,.228),matte('Wasabi lid label',0xffffff,lidMark(),.10));
   label.name='Wasabi lid paper mark';
   label.rotation.set(-Math.PI/2,0,.27);
-  label.position.set(.055,1.000,-.035);
+  label.position.set(.025,.951,-.105);
   group.add(label);
 }
 
@@ -163,7 +157,7 @@ export function restyleRightCounter(model){
   const glass=new THREE.MeshPhysicalMaterial({
     name:'BOTTLE GLASS · counter jars',color:0xc3d0b4,roughness:.19,
   });
-  wasabiJar(placement(fittings,'Wasabi jar',7.81,.16),glass);
+  wasabiJar(placement(fittings,'Wasabi jar',7.81,.16));
   soyCruet(placement(fittings,'Soy dispenser',9.04,.31),glass,bent);
 
   const terminal=model.children.find(o=>o.name.startsWith('POS'));

@@ -82,12 +82,14 @@ export function installConveyor(model, dishes) {
   // Cross-sections follow the profiles of the straight Blender rail meshes.
   arcStrip(-.07,2.13,-1.14,2.64,oak);
   const baseGeometry=new THREE.BoxGeometry(straightSpan,2.64,2.13);
+  const supports=[];
   for (const z of [frontZ-.07,rearZ+.07]) {
     const base=new THREE.Mesh(baseGeometry,oak);
     base.name='Conveyor straight support';
     base.position.set(0,.18,z);
     base.castShadow=base.receiveShadow=true;
     model.add(base);
+    supports.push(base);
   }
   arcStrip(-.07,2.45,1.49,.22,black);
   arcStrip(.97,.28,.01,1.62,steel);
@@ -191,6 +193,6 @@ export function installConveyor(model, dishes) {
     });
   }
   update(0);
-  const isSurface=object=>object===front || object===rear || object===endRails || batches.includes(object);
+  const isSurface=object=>object===front || object===rear || object===endRails || supports.includes(object) || batches.includes(object);
   return {update,takeDish,putDish,replacementFor,futurePosition,refill,isSurface};
 }

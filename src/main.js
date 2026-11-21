@@ -13,6 +13,7 @@ import { installConveyor, isFrontDish, straightSpan, conveyorHalfWidth } from '.
 import { installIzakayaBackdrop } from './izakaya-backdrop.js';
 import { addSushiMenu, matchesTableware } from './sushi/servings.js';
 import { makeSushiTableware } from './sushi/tableware.js';
+import { createCounterCondiments } from './counter-condiments.js';
 import { restyleRightCounter } from './counter-service.js';
 import { addCounterPlayer } from './counter-player.js';
 import { createPlayerInteraction } from './counter-player-interaction.js';
@@ -35,20 +36,7 @@ const hoverLabel = document.querySelector('#object-hover-label');
 const showHoverLabel = createHoverLabel(hoverLabel);
 const app = document.querySelector('#app');
 const sounds = createCounterAudio();
-const soundButton = document.querySelector('#sound');
-soundButton.hidden=!sounds.supported;
-function syncSoundButton() {
-  soundButton.setAttribute('aria-pressed',String(!sounds.muted));
-  soundButton.title=sounds.muted ? 'Enable sound effects' : 'Mute sound effects';
-}
-syncSoundButton();
 for(const gesture of ['pointerdown','click','keydown'])document.addEventListener(gesture,sounds.unlock,true);
-soundButton.addEventListener('click',()=>{
-  if(!introComplete)return;
-  sounds.setMuted(!sounds.muted);
-  syncSoundButton();
-  if(!sounds.muted)sounds.play('interface',.53);
-});
 const explore = document.querySelector('#start-exploring');
 const loading = document.querySelector('#loading');
 const playerExit = document.querySelector('#mp3-exit');
@@ -243,7 +231,7 @@ function renderScene() {
   const hovered = counterHover.render(renderer,
     introComplete && pointerOnCanvas && !orbitDragging ? pointer : null, uniforms, reducedMotion);
   updateHoverLabel(hovered);
-  const canClick = hovered && (hovered.root === deskMenu || hovered.root === teaStory.teapot
+  const canClick = hovered && (condiments.targets.has(hovered.root) || hovered.root === deskMenu || hovered.root === teaStory.teapot || hovered.root === teaStory.cup
     || (!overview && (hovered.root===counterStories.terminal || hovered.root===playerInteraction.player || plates.includes(hovered.root)))
     || (!overview && (hovered.root===experience.column || hovered.root===contact.bell || hovered.root===contact.card)));
   let playerControl=false;
@@ -266,6 +254,7 @@ let counterHover;
 let menuIntro;
 let teaStory;
 let teaActive = false;
+let condiments;
 let counterStories;
 let counterStoryActive = false;
 let experience;
@@ -460,6 +449,12 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
       if (slot) chefRestock.schedule(slot);
     },
   });
+  condiments=createCounterCondiments(model,camera,sounds,()=>{
+    introComplete=true;
+    app.removeAttribute('data-condiment');
+    controls.enabled=lookMode;
+    canvas.focus({preventScroll:true});
+  });
   playerInteraction = createPlayerInteraction(playerParts,camera,prints,document.querySelector('#mp3-status'),reducedMotion,sounds,(resized)=>{
     playerActive=false;
     introComplete=true;
@@ -470,7 +465,7 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
     controls.enabled=lookMode;
     clearPointer();
     canvas.focus({preventScroll:true});
-  },syncSoundButton);
+  });
   paintLabel(playerExit.querySelector('canvas'),'Back to Explore',1,'#f6e6c9',0);
   playerExit.addEventListener('click',playerInteraction.dismiss);
   renderer.shadowMap.needsUpdate = true;
@@ -495,22 +490,12 @@ Promise.all([loadScene, createSushiChef(), loadIzakayaPrints()]).then(([gltf, ch
   document.querySelector('#error').hidden = false;
   document.querySelector('#error p').textContent = 'The scene could not be loaded. Please reload to try again.';
 });
-function updateMotionButton() {
-  const button = document.querySelector('#motion');
-  button.setAttribute('aria-pressed', String(motion));
-  button.title = motion ? 'Pause conveyor' : 'Start conveyor';
-  button.querySelector('span').textContent = conveyorHold?.boosted ? `Conveyor ×${conveyorBoostMultiplier}` : motion ? 'Conveyor on' : 'Conveyor paused';
-  button.querySelector('svg').innerHTML = motion ? '<path d="M7 5v10M13 5v10"/>' : '<path d="m7 4 9 6-9 6Z"/>';
-}
-updateMotionButton();
 function toggleMotion() {
   if (!introComplete) return;
   motion = !motion;
   sounds.play(motion?'beltStart':'beltStop',.73);
   if (!motion) endConveyorHold();
-  updateMotionButton();
 }
-document.querySelector('#motion').addEventListener('click',toggleMotion);
 const tourButton = document.querySelector('#tour');
 const seatedLimits = {minDistance:14,maxDistance:26,minPolarAngle:.9,maxPolarAngle:1.3,
   minAzimuthAngle:-.22,maxAzimuthAngle:.22,rotateSpeed:.35,zoomSpeed:.45};
@@ -535,8 +520,6 @@ function syncCutaway() {
 function updateViewButtons() {
   tourButton.setAttribute('aria-pressed',String(overview));
   tourButton.querySelector('span').textContent=overview ? 'Back to seat' : '360° view';
-  document.querySelector('#look').setAttribute('aria-pressed',String(lookMode && !overview));
-  document.querySelector('#look span').textContent=lookMode && !overview ? 'Reset view' : 'Look around';
   canvas.style.cursor=lookMode ? 'grab' : 'default';
 }
 function seatedPose() {
@@ -602,25 +585,6 @@ tourButton.addEventListener('click',()=>{
 });
 controls.addEventListener('start',()=>{orbitDragging=true;if(overview)controls.autoRotate=false;});
 controls.addEventListener('end',()=>{orbitDragging=false;});
-document.querySelector('.brand').addEventListener('click', (event) => {
-  event.preventDefault();
-  if (introComplete) {
-    sounds.play('interface',.52,0,.88);
-    resetView();
-  }
-});
-document.querySelector('#look').addEventListener('click', () => {
-  if (!introComplete) return;
-  sounds.play('interface',.60,0,lookMode?.88:1.10);
-  if (overview) resetView();
-  lookMode = !lookMode;
-  controls.enabled = lookMode;
-  document.querySelector('#look').setAttribute('aria-pressed',String(lookMode));
-  document.querySelector('#look span').textContent = lookMode ? 'Reset view' : 'Look around';
-  canvas.style.cursor = lookMode ? 'grab' : 'default';
-  if (!lookMode) resetView();
-  showHint(lookMode ? 'Drag to look around · scroll to move closer' : 'Back to your seat');
-});
 let hintTimeout;
 function showHint(label) {
   hint.textContent = label;
@@ -661,7 +625,7 @@ function pickAt(clientX,clientY){
   });
   if(!hit)return null;
   let root=hit.object;
-  while(root.parent && root.parent!==window.__sushi.model && root.parent!==plateStack)root=root.parent;
+  while(!condiments?.targets.has(root) && root.parent && root.parent!==window.__sushi.model && root.parent!==plateStack)root=root.parent;
   return root;
 }
 const experienceLabelAnchor=new THREE.Vector3();
@@ -691,8 +655,8 @@ function reopenMenu() {
   controls.enabled = false;
   clearPointer();
 }
-function pourTea() {
-  if (!introComplete || !teaStory.begin()) return;
+function pourTea(drink=false) {
+  if (!introComplete || !(drink ? teaStory.drink() : teaStory.begin())) return;
   teaActive = true;
   introComplete = false;
   app.dataset.tea = '';
@@ -751,7 +715,6 @@ function endConveyorHold(event) {
   if (boosted) {
     sounds.stop('belt',.15);
     if(motion)sounds.play('beltStop',.29,0,1.12);
-    updateMotionButton();
   }
 }
 canvas.addEventListener('pointerdown', event => {
@@ -759,7 +722,7 @@ canvas.addEventListener('pointerdown', event => {
   endConveyorHold();
   suppressConveyorClick=false;
   pointerDown.set(event.clientX,event.clientY);
-  if (!introComplete || !motion) return;
+  if (!introComplete) return;
   const picked=pickAt(event.clientX,event.clientY);
   if (conveyor.isSurface(picked)) {
     conveyorHold={id:event.pointerId,started:performance.now(),boosted:false};
@@ -788,8 +751,14 @@ canvas.addEventListener('click',event=>{
   }
   if (!introComplete) return;
   const picked = pickAt(event.clientX,event.clientY);
-  if (picked === deskMenu) reopenMenu();
+  if(condiments.begin(picked)){
+    introComplete=false;
+    app.dataset.condiment='';
+    controls.enabled=false;
+    clearPointer();
+  }else if (picked === deskMenu) reopenMenu();
   else if (picked === teaStory.teapot) pourTea();
+  else if (picked === teaStory.cup) pourTea(true);
   else if (!overview && picked === counterStories.terminal) startCounterStory('resume');
   else if (picked === contact.bell || picked === contact.card) openContact(picked===contact.card);
   else if (picked === playerInteraction.player) openPlayer();
@@ -809,7 +778,22 @@ window.addEventListener('blur',()=>{
   endConveyorHold();
   clearPointer();
 });
+const macShortcuts=/mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform || navigator.platform);
+function isMuteShortcut(event){
+  const modifier=macShortcuts ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  return modifier && !event.altKey && !event.shiftKey && event.code==='KeyM';
+}
 window.addEventListener('keydown',(event) => {
+  if(isMuteShortcut(event)){
+    event.preventDefault();
+    if(!event.repeat){
+      sounds.toggleAllMute();
+      playerInteraction?.syncMute();
+      showHint(sounds.allMuted?'All sound muted':'Sound settings restored');
+    }
+    return;
+  }
+  if(event.code==='KeyM' && (event.metaKey || event.ctrlKey || event.altKey))return;
   if(contactActive) {
     if(event.code==='Escape') {
       event.preventDefault();
@@ -861,7 +845,7 @@ window.addEventListener('keydown',(event) => {
 function resize() {
   camera.aspect = innerWidth/innerHeight;
   // Portrait retains the entire counter, rather than silently cropping its objects.
-  const focused=teaActive || counterStoryActive || experienceActive || playerActive || contactActive;
+  const focused=condiments?.active || teaActive || counterStoryActive || experienceActive || playerActive || contactActive;
   if (!lookMode && !focused) seatedPose();
   else if (!focused) {
     camera.fov = camera.aspect<1 ? (overview ? 70 : 69) : (overview ? 48 : 38);
@@ -895,14 +879,13 @@ function animate(now) {
     conveyorHold.boostedAt=now;
     suppressConveyorClick=true;
     sounds.play('beltStart',.33);
-    updateMotionButton();
   }
-  const beltSpeed=motion ? conveyorSpeed*(conveyorHold?.boosted ? conveyorBoostMultiplier : 1) : 0;
+  const beltSpeed=conveyorSpeed*(conveyorHold?.boosted ? conveyorBoostMultiplier : Number(motion));
   if(conveyorHold?.boosted){
     const ramp=Math.min(1,(now-conveyorHold.boostedAt)/420);
     sounds.sustain('belt',.16,0,.94+.27*ramp);
   }
-  if (motion) {
+  if (beltSpeed>0) {
     conveyorTravel += dt*beltSpeed;
     conveyor.update(conveyorTravel);
     // Every rendered moving pose needs its own matching shadow maps.
@@ -915,7 +898,10 @@ function animate(now) {
   }
   if (playerInteraction.update(dt)) renderer.shadowMap.needsUpdate = true;
   if (!playerActive && !contactActive) {
-    if (teaActive) {
+    if(condiments.active){
+      condiments.update(dt);
+      renderer.shadowMap.needsUpdate=true;
+    }else if (teaActive) {
       if (teaStory.update(dt)) renderer.shadowMap.needsUpdate = true;
     } else if (counterStoryActive) {
       if (counterStories.update(dt)) renderer.shadowMap.needsUpdate = true;

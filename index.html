@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#302012" />
     <meta name="description" content="Take a seat at Kevlin's sushi counter. An original, interactive 3D portfolio scene, crafted in Blender and Three.js." />
     <title>Kevlin — The Sushi Counter</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%239b3827'/%3E%3Cpath d='M12 42a20 20 0 0140 0M19 42a13 13 0 0126 0M26 42a6 6 0 0112 0' fill='none' stroke='%23f4dfbb' stroke-width='3'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/png" href="/src/lin-icon.png?inline" />
   </head>
   <body>
     <main id="app" data-intro="opening" aria-label="A three-dimensional sushi restaurant counter">
@@ -61,23 +61,13 @@
         </article>
       </div>
       <header class="masthead">
-        <a class="brand" href="#" aria-label="Kevlin's sushi counter, reset view">
-          <span class="seal" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M5 28a15 15 0 0130 0M10 28a10 10 0 0120 0M15 28a5 5 0 0110 0"/></svg></span>
-          <span>KEVLIN SCHMIT<small>THE SUSHI COUNTER</small></span>
-        </a>
         <div class="edition"><span class="status-dot"></span> A PORTFOLIO, SERVED FRESH <span class="edition-no">/ 01</span></div>
       </header>
       <div class="scene-note"><span>ひとやすみ</span><i></i>Take a seat. Stay a little.</div>
       <footer class="controls">
         <span class="caption">CRAFTED WITH CARE <span>·</span> OPEN ALL HOURS</span>
-        <div class="control-group" aria-label="Scene controls">
-          <button id="motion" aria-pressed="true" title="Pause conveyor"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5v10M13 5v10"/></svg><span>Conveyor on</span></button>
-          <span class="divider"></span>
-          <button id="look" aria-pressed="false" title="Drag to look around"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z"/><circle cx="10" cy="10" r="2"/></svg><span>Look around</span></button>
-        </div>
         <div class="view-actions">
           <button id="tour" aria-pressed="false" title="360° scene view"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.6 6.5C13.7 5.7 11.9 5.4 10 5.4c-4.6 0-8 2.1-8 4.6s3.4 4.6 8 4.6 8-2.1 8-4.6c0-.7-.3-1.4-.9-2"/><path d="m13 4 2.9 2.6-3.6 1.2"/></svg><span>360° view</span></button>
-          <button id="sound" class="icon-button" type="button" aria-label="Sound effects" aria-pressed="true" title="Mute sound effects"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3Z"/><path class="sound-waves" d="M13 7.5a3.8 3.8 0 0 1 0 5m2-7a6.6 6.6 0 0 1 0 9"/><path class="sound-off" d="m13 8 4 4m0-4-4 4"/></svg></button>
           <button id="fullscreen" class="icon-button" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg></button>
         </div>
       </footer>

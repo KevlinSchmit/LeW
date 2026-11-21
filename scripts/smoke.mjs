@@ -43,7 +43,6 @@ try {
     const {model,camera,controls}=window.__sushi;
     const menu=model.children.find(part=>part.name.startsWith('MENU'));
     const {left,top,right,bottom}=document.querySelector('#start-exploring').getBoundingClientRect();
-    document.querySelector('#look').click();
     return {uuid:menu.uuid, open:menu.getObjectByName('Front cover hinge').rotation.z,
       framed:left>0 && top>0 && right<innerWidth && bottom<innerHeight,
       locked:!controls.enabled && document.querySelector('#scene').inert,
@@ -117,7 +116,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>{
     const {model,camera}=window.__sushi;
     return {empty:!model.getObjectByName('Rising tea surface').visible,camera:camera.position.toArray()};
-  }),{empty:true,camera:tea.camera},'Closing the story returns the camera and empties the cup');
+  }),{empty:false,camera:tea.camera},'Closing the story returns the camera and leaves the cup full');
   const assets = await page.evaluate(()=>{
     const app=window.__sushi;
     let meshes=0, vertices=0;
@@ -485,8 +484,7 @@ try {
     const app=window.__sushi;
     const canvas=document.querySelector('#scene');
     const label=document.querySelector('#object-hover-label');
-    const look=document.querySelector('#look');
-    const motion=document.querySelector('#motion');
+    const toggleMotion=()=>{canvas.focus();canvas.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}));};
     const wasMoving=app.motion;
     const frame=()=>new Promise(requestAnimationFrame);
     const point=app.camera.position.clone();
@@ -497,8 +495,7 @@ try {
       await frame();
       return app.hoveredObject===object;
     };
-    if(wasMoving)motion.click();
-    look.click();
+    if(wasMoving)toggleMotion();
     try {
       const bell=app.model.children.find(part=>part.name.startsWith('BELL'));
       const dish=app.plates.filter(part=>part.position.z>-3)
@@ -512,8 +509,7 @@ try {
       return {bellResponds,bellLabel,coverResponds,sushiHasNoLabel,
         clears:app.hoveredObject===null && label.hidden, noNativeTooltip:!canvas.title};
     } finally {
-      look.click();
-      if(wasMoving)motion.click();
+      if(wasMoving)toggleMotion();
     }
   });
   assert.ok(hover.bellResponds && hover.coverResponds && hover.clears,
@@ -560,16 +556,11 @@ try {
   await page.waitForFunction(before=>window.__sushi.plates[0].position.x<before-.005,x);
   assert.deepEqual(await page.evaluate(()=>window.__sushi.model.children.find(o=>o.name.startsWith('CHEF')).position.toArray()),chefInfo.position,'Chef stays stationary while the sushi moves');
   console.log('Shadow synchronization:',await checkShadowMotion(page));
-  await page.getByRole('button',{name:'Conveyor on'}).click();
+  await page.locator('#scene').press('Space');
   assert.equal(await page.evaluate(()=>window.__sushi.motion),false);
   const paused=await page.evaluate(()=>window.__sushi.plates[0].position.x);
   await page.waitForTimeout(700);
   assert.equal(await page.evaluate(()=>window.__sushi.plates[0].position.x),paused,'Pausing stops the conveyor');
-  await page.getByRole('button',{name:'Look around'}).click();
-  assert.equal(await page.evaluate(()=>window.__sushi.controls.enabled),true);
-  await page.mouse.move(650,360);await page.mouse.down();await page.mouse.move(750,370,{steps:5});await page.mouse.up();
-  await page.getByRole('button',{name:'Reset view'}).click();
-  assert.equal(await page.evaluate(()=>window.__sushi.controls.enabled),false);
   await page.getByRole('button',{name:'360° view'}).click();
   assert.ok(await page.evaluate(()=>window.__sushi.overview && window.__sushi.controls.maxAzimuthAngle===Infinity));
   await page.keyboard.press('ArrowRight');
@@ -583,7 +574,7 @@ try {
   // Software WebGL can delay the resize event; wait for the canvas layout.
   await page.waitForFunction(()=>document.querySelector('#scene').clientWidth===innerWidth);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),390,'No mobile horizontal overflow');
-  assert.equal(await page.locator('#motion').isVisible(),true);
+  assert.equal(await page.locator('.brand,#motion,#look,#sound').count(),0);
   const portraitChef=await page.evaluate(()=>{
     const app=window.__sushi,chef=app.model.children.find(o=>o.name.startsWith('CHEF')),V=app.camera.position.constructor;
     const project=point=>new V(...point).applyMatrix4(chef.matrixWorld).project(app.camera);

@@ -33,7 +33,6 @@ export function createPlateExperience(stack, scene, camera, sounds, onClose) {
   const exit=overlay.querySelector('button');
   const query=new THREE.Raycaster();
   const aim=new THREE.PerspectiveCamera();
-  const stackBounds=new THREE.Box3().setFromObject(stack).expandByScalar(.13);
   const stackCenter=new THREE.Box3().setFromObject(column).getCenter(new THREE.Vector3());
   const right=new THREE.Vector3(), viewPoint=new THREE.Vector3();
   const parentRotation=new THREE.Quaternion();
@@ -46,6 +45,7 @@ export function createPlateExperience(stack, scene, camera, sounds, onClose) {
   const readingLight=new THREE.SpotLight(0xffefd8,0,8,.70,.62,2);
   scene.add(readingLight,readingLight.target);
 
+  let returnToCounter=false;
   let stage='idle', time=0, origin, departure, picked, hovered, keyboardPlate, turnFrom=0;
   const cameraState=()=>({position:camera.position.clone(),rotation:camera.quaternion.clone(),fov:camera.fov});
   function setStage(next){
@@ -155,6 +155,7 @@ export function createPlateExperience(stack, scene, camera, sounds, onClose) {
   function begin() {
     if(stage!=='idle')return false;
     sounds.play('interface',.51,-.45);
+    returnToCounter=false;
     origin=cameraState();
     overlay.hidden=false;
     setExit('Back to Explore');
@@ -211,7 +212,8 @@ export function createPlateExperience(stack, scene, camera, sounds, onClose) {
         picked=null;
         setExit('Back to Explore');
         setStage('browsing');
-        sceneCanvas.focus({preventScroll:true});
+        if(returnToCounter)dismiss();
+        else sceneCanvas.focus({preventScroll:true});
       }
       return true;
     }
@@ -236,13 +238,17 @@ export function createPlateExperience(stack, scene, camera, sounds, onClose) {
     begin,dismiss,update,
     pointerMoved(){keyboardPlate=null;},
     click(pointer){
-      if(stage==='browsing'){
+      if(stage==='browsing'||stage==='entering'){
         const plate=pick(pointer);
         if(plate)activate(plate);
-        else if(!query.ray.intersectsBox(stackBounds))dismiss();
-      }else if(stage==='reading'){
+        else dismiss();
+      }else if(['turning','reading','storing'].includes(stage)){
         query.setFromCamera(pointer,camera);
-        if(!query.intersectObject(picked.plate.mesh,false).length)dismiss();
+        picked.plate.mesh.updateWorldMatrix(true,false);
+        if(!query.intersectObject(picked.plate.mesh,false).length){
+          returnToCounter=true;
+          dismiss();
+        }
       }
     },
     key(event){
